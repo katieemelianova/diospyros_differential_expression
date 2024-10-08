@@ -1,0 +1,51 @@
+from glob import glob
+species="calciphila"
+samples=glob("/".join([species, "*.1.fq.gz"]))
+samples = [i.split(".")[0] for i in samples]
+
+GENOMEDIR="./diospyros_reference_genome"
+GTF="vieillardii.gtf"
+
+
+rule cutadapt:
+    input:
+        fwd="{sample}.1.fq.gz",
+        rev="{sample}.2.fq.gz"
+    output: 
+        fwd="{sample}.trimmed.1.fq.gz",
+        rev="{sample}.trimmed.2.fq.gz"
+    shell:
+        """
+        cutadapt -m 150 --rc -a AGATCGGAAGAG -A AGATCGGAAGAG -o {output.fwd} -p {output.rev} {input.fwd} {input.rev}
+        """
+
+
+rule star:
+    input:
+        fwd="{sample}.trimmed.1.fq.gz",
+        rev="{sample}.trimmed.2.fq.gz"
+    output: "{sample}Aligned.sortedByCoord.out.bam"
+    params:
+        genomedir=GENOMEDIR
+    shell:
+        """
+        STAR --genomeDir {params.genomedir} --runThreadN 32 --twopassMode Basic --outFilterMultimapNmax 10 --readFilesIn {input.fwd} {input.rev} --outFileNamePrefix {wildcards.sample} --outSAMtype BAM SortedByCoordinate --outFilterScoreMinOverLread 0.3 --outFilterMatchNminOverLread 0.3 --readFilesCommand zcat 
+        """
+
+
+rule featurecounts:
+    input: "{sample}Aligned.sortedByCoord.out.bam"
+    output: "{sample}.featureCount"
+    params:
+        gtf=GTF
+    shell:
+        """
+        featureCounts -p --countReadPairs -B -g "transcript_id" -t CDS -B -T 32 -p -a {params.gtf} -o {output} {input}
+        """
+
+
+rule run:
+    input:
+        fc=expand("{sample}.featureCount", sample=samples)
+        #bam=expand("{sample}Aligned.sortedByCoord.out.bam", sample=samples)
+
