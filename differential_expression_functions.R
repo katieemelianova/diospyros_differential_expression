@@ -153,17 +153,7 @@ get_species_tree <- function(){
                  species_tree$tip.label[(startsWith(species_tree$tip.label, "spn"))][-1],
                  species_tree$tip.label[(startsWith(species_tree$tip.label, "Mad"))])
   
-  
-  ######################################
-  #          drop defined tips         #
-  ######################################
-  
   species_tree<-drop.tip(species_tree, tip_to_drop)
-  
-  
-  #####################################################
-  #         make tip labels full species names        #
-  #####################################################
   
   species_tree$tip.label<-case_when(startsWith(species_tree$tip.label, "cal") ~"calciphila",
                                     startsWith(species_tree$tip.label, "unk") ~"unknown",

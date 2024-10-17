@@ -5,6 +5,8 @@ library(stringr)
 library(tidyverse)
 library(DESeq2)
 library(topGO)
+library("wesanderson")
+library(egg)
 source("differential_expression_functions.R")
 
 ############################################
@@ -96,8 +98,61 @@ all_dds <- DESeqDataSetFromMatrix(countData = all_comparison[["counts"]],
 
 pca_all <-plotPCA(all_dds, intgroup=c("species", "pseudoreplicate"), ntop = 5000, returnData = TRUE)
 
-ggplot(pca_all, aes(PC1, PC2)) +          
-  geom_point(size = 1, stroke = 5, aes(fill = species, colour=species))
+
+species_colours <- c("yellowgreen", "royalblue3", "plum1", "steelblue1", "salmon3", "orange2")
+
+
+
+pic1<-ggplot(pca_all, aes(PC1, PC2)) +          
+  geom_point(size = 1, stroke = 5, aes(fill = species, colour=species)) + 
+  scale_color_manual(values=species_colours) 
+
+species_tree<-get_species_tree()
+outgroup<-c("sandwicensis")
+ultramafic<-c("hequetiae", "revolutissima", "sp. Pic N'ga")
+volcanic<-c("calciphila", "impolita", "labillardierei")
+
+colours_tips <- case_when(species_tree$tip.label %in% ultramafic ~"Ultramafic",
+                          species_tree$tip.label %in% volcanic ~"Volcanic",
+                          !(species_tree$tip.label %in% c(outgroup, ultramafic, volcanic)) ~ "No data")
+
+colours_labels <- case_when(species_tree$tip.label == "calciphila" ~ "yellowgreen",
+                            species_tree$tip.label == "impolita" ~ "plum1",
+                            species_tree$tip.label == "labillardierei" ~ "steelblue1",
+                            species_tree$tip.label == "hequetiae" ~ "royalblue3",
+                            species_tree$tip.label == "revolutissima" ~ "salmon3",
+                            species_tree$tip.label == "sp. Pic N'ga" ~ "orange2",
+                            !(species_tree$tip.label %in% c("calciphila", "impolita", "labillardierei", "hequetiae", "revolutissima", "sp. Pic N'ga")) ~ "grey77")
+
+
+dd <- data.frame(taxa=species_tree$tip.label, tipcols=colours_tips, labelcols=colours_labels)
+p<-ggtree(species_tree, size=1)
+p <- p %<+% dd + geom_tippoint(aes(color=tipcols), size=6, show.legend=FALSE) + scale_color_manual(values=c("magenta", "chartreuse2"), limits = c("Ultramafic", "Volcanic"), na.value = "grey77") 
+#p <- p + geom_tippoint(size=6, show.legend=FALSE, colour="blue")
+p2<-p + new_scale_color() + geom_tiplab(size=8, aes(color=species), offset=0.01, show.legend=FALSE) + 
+  scale_color_manual(values=colours_labels, limits=species_tree$tip.label) + 
+  theme(legend.title = element_blank(),
+        legend.text = element_text(size=12)) +
+  expand_limits(x = 0.15)
+
+
+pic2<-p2
+
+pdf("testplot.pdf", width = 12, height = 7)
+grid.arrange(pic1, pic2, nrow = 1)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
 
 ggplot(pca_all, aes(PC1, PC2)) +          
   geom_point(size = 1, stroke = 5, aes(fill = name, colour=name)) +
