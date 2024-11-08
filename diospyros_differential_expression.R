@@ -99,13 +99,26 @@ all_dds <- DESeqDataSetFromMatrix(countData = all_comparison[["counts"]],
 pca_all <-plotPCA(all_dds, intgroup=c("species", "pseudoreplicate"), ntop = 5000, returnData = TRUE)
 
 
-species_colours <- c("yellowgreen", "royalblue3", "plum1", "steelblue1", "salmon3", "orange2")
+#species_colours <- c("darkolivegreen4", "royalblue3", "orchid3", "steelblue1", "salmon3", "orange2")
 
+species_colours <- c("#68C7AA", "#AD1640", "#FF007E", "#F1A1FD", "#22660D", "#FE841C")
 
+pca_all %<>% mutate(species=case_when(species == "cal" ~ "calciphila",
+                                     species == "heq" ~ "hequetiae",
+                                     species == "imp" ~ "impolita",
+                                     species == "rev" ~ "revolutissima",
+                                     species == "spn" ~ "sp. Pic N'ga",
+                                     species == "lab" ~ "labillardierei"))
+
+##########################################
+#          plot PCA with phylo tree      #
+##########################################
 
 pic1<-ggplot(pca_all, aes(PC1, PC2)) +          
   geom_point(size = 1, stroke = 5, aes(fill = species, colour=species)) + 
-  scale_color_manual(values=species_colours) 
+  scale_color_manual(values=species_colours) +
+  theme(axis.text = element_text(size=15),
+        axis.title = element_text(size=18))
 
 species_tree<-get_species_tree()
 outgroup<-c("sandwicensis")
@@ -116,68 +129,94 @@ colours_tips <- case_when(species_tree$tip.label %in% ultramafic ~"Ultramafic",
                           species_tree$tip.label %in% volcanic ~"Volcanic",
                           !(species_tree$tip.label %in% c(outgroup, ultramafic, volcanic)) ~ "No data")
 
-colours_labels <- case_when(species_tree$tip.label == "calciphila" ~ "yellowgreen",
-                            species_tree$tip.label == "impolita" ~ "plum1",
-                            species_tree$tip.label == "labillardierei" ~ "steelblue1",
-                            species_tree$tip.label == "hequetiae" ~ "royalblue3",
-                            species_tree$tip.label == "revolutissima" ~ "salmon3",
-                            species_tree$tip.label == "sp. Pic N'ga" ~ "orange2",
-                            !(species_tree$tip.label %in% c("calciphila", "impolita", "labillardierei", "hequetiae", "revolutissima", "sp. Pic N'ga")) ~ "grey77")
 
+
+#P36 = createPalette(36,  c("#5E4FA2", "#3288BD", "#66C2A5")) %>% as.character()
+#show_col(P36)
+
+# get as many colours as you need, minus one to put grey at the end for Other
+col_vector<-c(P36[1:length(levels(all$B2)) -1], "gray63")
+
+#"#ADF1A2", "#8B3D49", "#FF007E", "#F1A1FD", "#22660D", "#FE841C"
+
+#colours_labels <- case_when(species_tree$tip.label == "calciphila" ~ "darkolivegreen4",
+#                            species_tree$tip.label == "impolita" ~ "orchid3",
+#                            species_tree$tip.label == "labillardierei" ~ "steelblue1",
+#                            species_tree$tip.label == "hequetiae" ~ "royalblue3",
+#                            species_tree$tip.label == "revolutissima" ~ "salmon3",
+#                            species_tree$tip.label == "sp. Pic N'ga" ~ "orange2",
+#                            !(species_tree$tip.label %in% c("calciphila", "impolita", "labillardierei", "hequetiae", "revolutissima", "sp. Pic N'ga")) ~ "grey77")
+
+colours_labels <- case_when(species_tree$tip.label == "calciphila" ~ "#68C7AA",
+                            species_tree$tip.label == "impolita" ~ "#AD1640",
+                            species_tree$tip.label == "labillardierei" ~ "#FF007E",
+                            species_tree$tip.label == "hequetiae" ~ "#F1A1FD",
+                            species_tree$tip.label == "revolutissima" ~ "#22660D",
+                            species_tree$tip.label == "sp. Pic N'ga" ~ "#FE841C",
+                            !(species_tree$tip.label %in% c("calciphila", "impolita", "labillardierei", "hequetiae", "revolutissima", "sp. Pic N'ga")) ~ "grey77")
 
 dd <- data.frame(taxa=species_tree$tip.label, tipcols=colours_tips, labelcols=colours_labels)
 p<-ggtree(species_tree, size=1)
-p <- p %<+% dd + geom_tippoint(aes(color=tipcols), size=6, show.legend=FALSE) + scale_color_manual(values=c("magenta", "chartreuse2"), limits = c("Ultramafic", "Volcanic"), na.value = "grey77") 
+p <- p %<+% dd #+ geom_tippoint(aes(color=tipcols), size=6, show.legend=FALSE) + scale_color_manual(values=c("firebrick1", "gold1"), limits = c("Ultramafic", "Volcanic"), na.value = "grey77") 
 #p <- p + geom_tippoint(size=6, show.legend=FALSE, colour="blue")
-p2<-p + new_scale_color() + geom_tiplab(size=8, aes(color=species), offset=0.01, show.legend=FALSE) + 
+p2<-p + new_scale_color() + geom_tiplab(size=8, aes(color=species, fontface="bold"), offset=0.01, show.legend=FALSE) + 
   scale_color_manual(values=colours_labels, limits=species_tree$tip.label) + 
   theme(legend.title = element_blank(),
         legend.text = element_text(size=12)) +
   expand_limits(x = 0.15)
 
 
-pic2<-p2
+##############################
+#    load in elements data   #
+##############################
+source("/Users/katieemelianova/Desktop/Diospyros/diospyros_R_functions/diospyros_soil_leaf_species_element_dataset.R")
+elements<-get_element_dataset()
+# match tiplab name with element name
+elements$species[elements$species == "sp PicN'ga"] <- "sp. Pic N'ga"
+test<-elements[elements$species %in% c("calciphila", "impolita", "labillardierei", "hequetiae", "revolutissima", "sp. Pic N'ga"),]  %>% dplyr::select(species, Cr_soil) %>% data.frame()
+pic2<-facet_plot(p2, panel="Boxplot", data=test, geom_boxplot, mapping = aes(x=Cr_soil, group = label, fill=species)) + theme(legend.position="none") + scale_fill_manual(values=c("#68C7AA", "#F1A1FD", "#AD1640", "#FF007E", "#22660D", "#FE841C"))
 
-pdf("testplot.pdf", width = 12, height = 7)
+
+
+
+
+#pic2<-p2
+
+# a nice example of tree + boxplot
+# https://github.com/YuLab-SMU/ggtree/issues/96
+
+
+
+
+pdf("PCA_with_tree.pdf", width = 16, height = 7)
 grid.arrange(pic1, pic2, nrow = 1)
 dev.off()
 
 
+############################################################################
+#     add in soil preference to sample info for differential expression   #
+############################################################################
+
+all_samples %<>% mutate(soil=case_when(species == "cal" ~ "volcanic",
+                                       species == "heq" ~ "ultramafic",
+                                       species == "imp" ~ "volcanic",
+                                       species == "lab" ~ "volcanic",
+                                       species == "rev" ~ "ultramafic",
+                                       species == "spn" ~ "ultramafic",))
 
 
-
-
-
-
-
-
-
-
-
-ggplot(pca_all, aes(PC1, PC2)) +          
-  geom_point(size = 1, stroke = 5, aes(fill = name, colour=name)) +
-  scale_fill_manual(values=c(test)) +
-  scale_colour_manual(values=c(test))
-
-
-
-library(RColorBrewer)
-library(ggh4x)
-library(Polychrome)
-P36 = createPalette(38,  c("red", "white", "green")) %>% as.character()
-
-
-
-test<-c("#9DC022", "#35B600", "#0DFDA5", "#C3EEAC", "#66C3A7", "#ABF700",
-"#89660D", "#AA8A8A", "#893D47", "#F8A193", "#A3004D", "#42494F", "#ED7149", "red", "tomato3",
-"#FED5FB", "mistyrose1", "#FE35F5", "#FD7FBB", "#D000FE", "#FE16C5", "#831677",
-"#00EAFC", "#BBE6FA", "#2A47FF", "#1C94FB", "#C0BBFE", "#2E85BB", "#5D51A5", "blue")
-
-# get as many colours as you need, minus one to put grey at the end for Other
-col_vector<-c(P36[1:length(levels(all$B2)) -1], "gray63")
 ##########################
 #     Run DE analysis    #
 ##########################
+
+ultra_volc <- specify_comparison(all_samples, all_counts, "1 == 1") %>% run_diffexp("soil", all_lengths, cpm_threshold=1, min_samples=3)
+
+ultra_volc$results %>% data.frame() %>% filter(padj < 0.05 & log2FoldChange > 2.5) %>% rownames() %>% length()
+test <- ultra_volc$results %>% data.frame() %>% filter(padj < 0.005 & log2FoldChange > 3) %>% rownames()
+
+
+
+
 
 cal_spn <-specify_comparison(all_samples, all_counts, "species %in% c('cal', 'spn')") %>% run_diffexp("species", all_lengths, cpm_threshold=1, min_samples=3)
 heq_imp <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'imp')") %>% run_diffexp("species", all_lengths, cpm_threshold=1, min_samples=3)
@@ -187,6 +226,9 @@ imp_spn <-specify_comparison(all_samples, all_counts, "species %in% c('imp', 'sp
 
 heq_cal <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'cal')") %>% run_diffexp("species", all_lengths, cpm_threshold=1, min_samples=3)
 heq_spn <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'spn')") %>% run_diffexp("species", all_lengths, cpm_threshold=1, min_samples=3)
+
+test <- cal_spn$results %>% data.frame() %>% filter(padj < 0.005 & log2FoldChange > 3) %>% rownames()
+
 
 
 
@@ -209,9 +251,9 @@ turner<-c("g10554.t1", "g11922.t1", "g1383.t1", "g16134.t1", "g21710.t1", "g2383
 te_gene_mine<-dna_met_vie
 
 
+ultra_volc$results
 
-
-pheatmap::pheatmap(assay(heq_imp$dds)[konecna_de,], 
+pheatmap::pheatmap(assay(ultra_volc$dds)[test,], 
                    scale = "row", 
                    cluster_cols = FALSE,
                    cluster_rows = TRUE,
