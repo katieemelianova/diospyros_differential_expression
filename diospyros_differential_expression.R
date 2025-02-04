@@ -102,7 +102,7 @@ pca_all <-plotPCA(all_dds, intgroup=c("species", "pseudoreplicate"), ntop = 5000
 
 #species_colours <- c("darkolivegreen4", "royalblue3", "orchid3", "steelblue1", "salmon3", "orange2")
 
-species_colours <- c("#68C7AA", "#AD1640", "#FF007E", "#F1A1FD", "#22660D", "#FE841C")
+species_colours <- c("#68C7AA", "#F1A1FD", "#AD1640", "#FF007E", "#22660D", "#FE841C")
 
 pca_all %<>% mutate(species=case_when(species == "cal" ~ "calciphila",
                                      species == "heq" ~ "hequetiae",
@@ -129,24 +129,6 @@ volcanic<-c("calciphila", "impolita", "labillardierei")
 colours_tips <- case_when(species_tree$tip.label %in% ultramafic ~"Ultramafic",
                           species_tree$tip.label %in% volcanic ~"Volcanic",
                           !(species_tree$tip.label %in% c(outgroup, ultramafic, volcanic)) ~ "No data")
-
-
-
-#P36 = createPalette(36,  c("#5E4FA2", "#3288BD", "#66C2A5")) %>% as.character()
-#show_col(P36)
-
-# get as many colours as you need, minus one to put grey at the end for Other
-col_vector<-c(P36[1:length(levels(all$B2)) -1], "gray63")
-
-#"#ADF1A2", "#8B3D49", "#FF007E", "#F1A1FD", "#22660D", "#FE841C"
-
-#colours_labels <- case_when(species_tree$tip.label == "calciphila" ~ "darkolivegreen4",
-#                            species_tree$tip.label == "impolita" ~ "orchid3",
-#                            species_tree$tip.label == "labillardierei" ~ "steelblue1",
-#                            species_tree$tip.label == "hequetiae" ~ "royalblue3",
-#                            species_tree$tip.label == "revolutissima" ~ "salmon3",
-#                            species_tree$tip.label == "sp. Pic N'ga" ~ "orange2",
-#                            !(species_tree$tip.label %in% c("calciphila", "impolita", "labillardierei", "hequetiae", "revolutissima", "sp. Pic N'ga")) ~ "grey77")
 
 colours_labels <- case_when(species_tree$tip.label == "calciphila" ~ "#68C7AA",
                             species_tree$tip.label == "impolita" ~ "#AD1640",
