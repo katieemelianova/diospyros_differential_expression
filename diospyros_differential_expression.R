@@ -119,7 +119,9 @@ pic1<-ggplot(pca_all, aes(PC1, PC2)) +
   geom_point(size = 1, stroke = 5, aes(fill = species, colour=species)) + 
   scale_color_manual(values=species_colours) +
   theme(axis.text = element_text(size=15),
-        axis.title = element_text(size=18))
+        axis.title = element_text(size=18),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 15))
 
 species_tree<-get_species_tree()
 outgroup<-c("sandwicensis")
@@ -142,7 +144,7 @@ dd <- data.frame(taxa=species_tree$tip.label, tipcols=colours_tips, labelcols=co
 p<-ggtree(species_tree, size=1)
 p <- p %<+% dd #+ geom_tippoint(aes(color=tipcols), size=6, show.legend=FALSE) + scale_color_manual(values=c("firebrick1", "gold1"), limits = c("Ultramafic", "Volcanic"), na.value = "grey77") 
 #p <- p + geom_tippoint(size=6, show.legend=FALSE, colour="blue")
-p2<-p + new_scale_color() + geom_tiplab(size=8, aes(color=species, fontface="bold"), offset=0.01, show.legend=FALSE) + 
+p2<-p + new_scale_color() + geom_tiplab(size=5.5, aes(color=species), offset=0.005, show.legend=FALSE) + 
   scale_color_manual(values=colours_labels, limits=species_tree$tip.label) + 
   theme(legend.title = element_blank(),
         legend.text = element_text(size=12)) +
@@ -156,17 +158,20 @@ source("/Users/katieemelianova/Desktop/Diospyros/diospyros_R_functions/diospyros
 elements<-get_element_dataset()
 # match tiplab name with element name
 elements$species[elements$species == "sp PicN'ga"] <- "sp. Pic N'ga"
-test<-elements[elements$species %in% c("calciphila", "impolita", "labillardierei", "hequetiae", "revolutissima", "sp. Pic N'ga"),]  %>% dplyr::select(species, Cr_soil) %>% data.frame()
-pic2<-facet_plot(p2, panel="Boxplot", data=test, geom_boxplot, mapping = aes(x=Cr_soil, group = label, fill=species)) + theme(legend.position="none") + scale_fill_manual(values=c("#68C7AA", "#F1A1FD", "#AD1640", "#FF007E", "#22660D", "#FE841C"))
+test<-elements[elements$species %in% c("calciphila", "impolita", "labillardierei", "hequetiae", "revolutissima", "sp. Pic N'ga"),]  %>% dplyr::select(species, Cr_soil, Ni_soil, Co_soil) %>% data.frame()
+pic2<-facet_plot(p2, panel="Relative Soil Nickel Concentration", data=test, geom_boxplot, mapping = aes(x=Ni_soil, group = label, fill=species)) + 
+  theme_bw() +
+  theme(legend.position="none",
+        strip.text.x = element_text(size = 15),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()) + 
+  scale_fill_manual(values=c("#68C7AA", "#F1A1FD", "#AD1640", "#FF007E", "#22660D", "#FE841C"))
 
 
 # a nice example of tree + boxplot
 # https://github.com/YuLab-SMU/ggtree/issues/96
 
-
-
-
-pdf("PCA_with_tree.pdf", width = 16, height = 7)
+pdf("PCA_with_tree.pdf", width = 15, height = 7)
 grid.arrange(pic1, pic2, nrow = 1)
 dev.off()
 
