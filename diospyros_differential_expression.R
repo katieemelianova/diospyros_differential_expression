@@ -5,6 +5,7 @@ library(stringr)
 library(tidyverse)
 library(DESeq2)
 library(topGO)
+library(ggnewscale)
 library("wesanderson")
 library(egg)
 source("differential_expression_functions.R")
@@ -177,11 +178,6 @@ test<-elements[elements$species %in% c("calciphila", "impolita", "labillardierei
 pic2<-facet_plot(p2, panel="Boxplot", data=test, geom_boxplot, mapping = aes(x=Cr_soil, group = label, fill=species)) + theme(legend.position="none") + scale_fill_manual(values=c("#68C7AA", "#F1A1FD", "#AD1640", "#FF007E", "#22660D", "#FE841C"))
 
 
-
-
-
-#pic2<-p2
-
 # a nice example of tree + boxplot
 # https://github.com/YuLab-SMU/ggtree/issues/96
 
@@ -209,25 +205,22 @@ all_samples %<>% mutate(soil=case_when(species == "cal" ~ "volcanic",
 #     Run DE analysis    #
 ##########################
 
-ultra_volc <- specify_comparison(all_samples, all_counts, "1 == 1") %>% run_diffexp("soil", all_lengths, cpm_threshold=1, min_samples=3)
 
-ultra_volc$results %>% data.frame() %>% filter(padj < 0.05 & log2FoldChange > 2.5) %>% rownames() %>% length()
-test <- ultra_volc$results %>% data.frame() %>% filter(padj < 0.005 & log2FoldChange > 3) %>% rownames()
+cal_spn <-specify_comparison(all_samples, all_counts, "species %in% c('cal', 'spn')") %>% run_diffexp("species", "spn", "cal", all_lengths, cpm_threshold=1, min_samples=3)
+heq_imp <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'imp')") %>% run_diffexp("species", "heq", "imp", all_lengths, cpm_threshold=1, min_samples=3)
+
+imp_cal <-specify_comparison(all_samples, all_counts, "species %in% c('imp', 'cal')") %>% run_diffexp("species", "imp", "cal",  all_lengths, cpm_threshold=1, min_samples=3)
+heq_spn <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'spn')") %>% run_diffexp("species", "heq", "spn", all_lengths, cpm_threshold=1, min_samples=3)
 
 
 
 
+# write results to file
+cal_spn$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("spPicNga_calciphila.DEG.tsv")
+heq_imp$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("hequetiae_impolita.DEG.tsv")
+imp_cal$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("impolita_calciphila.DEG.tsv")
+heq_spn$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("hequetiae_spPicNga.DEG.tsv")
 
-cal_spn <-specify_comparison(all_samples, all_counts, "species %in% c('cal', 'spn')") %>% run_diffexp("species", all_lengths, cpm_threshold=1, min_samples=3)
-heq_imp <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'imp')") %>% run_diffexp("species", all_lengths, cpm_threshold=1, min_samples=3)
-
-imp_cal <-specify_comparison(all_samples, all_counts, "species %in% c('imp', 'cal')") %>% run_diffexp("species", all_lengths, cpm_threshold=1, min_samples=3)
-imp_spn <-specify_comparison(all_samples, all_counts, "species %in% c('imp', 'spn')") %>% run_diffexp("species", all_lengths, cpm_threshold=1, min_samples=3)
-
-heq_cal <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'cal')") %>% run_diffexp("species", all_lengths, cpm_threshold=1, min_samples=3)
-heq_spn <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'spn')") %>% run_diffexp("species", all_lengths, cpm_threshold=1, min_samples=3)
-
-test <- cal_spn$results %>% data.frame() %>% filter(padj < 0.005 & log2FoldChange > 3) %>% rownames()
 
 
 

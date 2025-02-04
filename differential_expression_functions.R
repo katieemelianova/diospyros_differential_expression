@@ -9,7 +9,7 @@ specify_comparison<-function(samples, counts, selection_statement){
 }
 
 
-run_diffexp<-function(comparison, design_term, gene_lengths, cpm_threshold=1, min_samples=3){
+run_diffexp<-function(comparison, design_term, treatgroup, controlgroup, gene_lengths, cpm_threshold=1, min_samples=3){
   formula_parsed<-paste("~", design_term)
   dds <- DESeqDataSetFromMatrix(countData = comparison[["counts"]],
                                 colData = comparison[["samples"]],
@@ -20,7 +20,7 @@ run_diffexp<-function(comparison, design_term, gene_lengths, cpm_threshold=1, mi
   idx <- rowSums( counts(dds, normalized=TRUE) >= cpm_threshold ) >= min_samples
   dds <- dds[idx,]
   dds <- DESeq(dds)
-  res <- results(dds)
+  res <- results(dds, contrast=c(design_term, treatgroup, controlgroup))
   return(list(dds=dds, results=res))
 }
 
