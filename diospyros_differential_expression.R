@@ -4,10 +4,16 @@ library(readr)
 library(stringr)
 library(tidyverse)
 library(DESeq2)
+library(ape)
 library(topGO)
+library(UpSetR)
 library(ggnewscale)
 library("wesanderson")
 library(egg)
+library(eulerr)
+library(pheatmap)
+library(ggtree)
+library(reshape2)
 source("differential_expression_functions.R")
 
 ############################################
@@ -115,6 +121,10 @@ pca_all %<>% mutate(species=case_when(species == "cal" ~ "calciphila",
 #          plot PCA with phylo tree      #
 ##########################################
 
+
+ggplot(pca_all, aes(PC1, PC2)) +          
+  geom_point(aes(fill = species, colour=species))
+
 pic1<-ggplot(pca_all, aes(PC1, PC2)) +          
   geom_point(size = 1, stroke = 5, aes(fill = species, colour=species)) + 
   scale_color_manual(values=species_colours) +
@@ -140,6 +150,16 @@ colours_labels <- case_when(species_tree$tip.label == "calciphila" ~ "#68C7AA",
                             species_tree$tip.label == "sp. Pic N'ga" ~ "#FE841C",
                             !(species_tree$tip.label %in% c("calciphila", "impolita", "labillardierei", "hequetiae", "revolutissima", "sp. Pic N'ga")) ~ "grey77")
 
+
+
+colours_labels_pairs <- case_when(species_tree$tip.label == "calciphila" ~ "dodgerblue2",
+                                  species_tree$tip.label == "impolita" ~ "hotpink",
+                                  species_tree$tip.label == "labillardierei" ~ "darkolivegreen3",
+                                  species_tree$tip.label == "hequetiae" ~ "darkolivegreen3",
+                                  species_tree$tip.label == "revolutissima" ~ "hotpink",
+                                  species_tree$tip.label == "sp. Pic N'ga" ~ "dodgerblue2",
+                                  !(species_tree$tip.label %in% c("calciphila", "impolita", "labillardierei", "hequetiae", "revolutissima", "sp. Pic N'ga")) ~ "grey77")
+
 dd <- data.frame(taxa=species_tree$tip.label, tipcols=colours_tips, labelcols=colours_labels)
 p<-ggtree(species_tree, size=1)
 p <- p %<+% dd #+ geom_tippoint(aes(color=tipcols), size=6, show.legend=FALSE) + scale_color_manual(values=c("firebrick1", "gold1"), limits = c("Ultramafic", "Volcanic"), na.value = "grey77") 
@@ -149,6 +169,8 @@ p2<-p + new_scale_color() + geom_tiplab(size=5.5, aes(color=species), offset=0.0
   theme(legend.title = element_blank(),
         legend.text = element_text(size=12)) +
   expand_limits(x = 0.15)
+
+
 
 
 ##############################
@@ -164,7 +186,8 @@ pic2<-facet_plot(p2, panel="Relative Soil Nickel Concentration", data=test, geom
   theme(legend.position="none",
         strip.text.x = element_text(size = 15),
         axis.text.y=element_blank(),
-        axis.ticks.y=element_blank()) + 
+        axis.ticks.y=element_blank()
+        ) + 
   scale_fill_manual(values=c("#68C7AA", "#F1A1FD", "#AD1640", "#FF007E", "#22660D", "#FE841C"))
 
 
@@ -180,10 +203,10 @@ dev.off()
 #     add in soil preference to sample info for differential expression   #
 ############################################################################
 
-all_samples %<>% mutate(soil=case_when(species == "cal" ~ "volcanic",
+all_samples %<>% mutate(soil=case_when(species == "cal" ~ "nonultramafic",
                                        species == "heq" ~ "ultramafic",
-                                       species == "imp" ~ "volcanic",
-                                       species == "lab" ~ "volcanic",
+                                       species == "imp" ~ "nonultramafic",
+                                       species == "lab" ~ "nonultramafic",
                                        species == "rev" ~ "ultramafic",
                                        species == "spn" ~ "ultramafic",))
 
@@ -192,21 +215,157 @@ all_samples %<>% mutate(soil=case_when(species == "cal" ~ "volcanic",
 #     Run DE analysis    #
 ##########################
 
-
-cal_spn <-specify_comparison(all_samples, all_counts, "species %in% c('cal', 'spn')") %>% run_diffexp("species", "spn", "cal", all_lengths, cpm_threshold=1, min_samples=3)
-heq_imp <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'imp')") %>% run_diffexp("species", "heq", "imp", all_lengths, cpm_threshold=1, min_samples=3)
-
-imp_cal <-specify_comparison(all_samples, all_counts, "species %in% c('imp', 'cal')") %>% run_diffexp("species", "imp", "cal",  all_lengths, cpm_threshold=1, min_samples=3)
-heq_spn <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'spn')") %>% run_diffexp("species", "heq", "spn", all_lengths, cpm_threshold=1, min_samples=3)
-
-
-
+cal_spn <-specify_comparison(all_samples, all_counts, "species %in% c('cal', 'spn')") %>% run_diffexp("species", "spn", "cal", all_lengths, cpm_threshold=5, min_samples=3)
+heq_lab <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'lab')") %>% run_diffexp("species", "heq", "lab", all_lengths, cpm_threshold=5, min_samples=3)
+rev_imp<-specify_comparison(all_samples, all_counts, "species %in% c('rev', 'imp')") %>% run_diffexp("species", "rev", "imp", all_lengths, cpm_threshold=5, min_samples=3)
 
 # write results to file
 cal_spn$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("spPicNga_calciphila.DEG.tsv")
-heq_imp$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("hequetiae_impolita.DEG.tsv")
-imp_cal$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("impolita_calciphila.DEG.tsv")
-heq_spn$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("hequetiae_spPicNga.DEG.tsv")
+heq_lab$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("hequetiae_labillardierei.DEG.tsv")
+rev_imp$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("revolutissimae_impolita.DEG.tsv")
+
+
+############################################################
+#     Use pairwise FSTs to decide how to pair up species   #
+############################################################
+
+read.table("avg_fst_lib12345.txt", header=TRUE) %>% filter(sp1 %in% c("impolita") & sp2 %in% c("hequetiae", "revolutissima", "impolita"))
+read.table("avg_fst_lib12345.txt", header=TRUE) %>% filter(sp1 %in% c("labillardierei") & sp2 %in% c("hequetiae", "revolutissima", "impolita"))
+
+read.table("avg_fst_lib12345.txt", header=TRUE) %>% filter(sp1 %in% c("revolutissima", "spPicNga", "hequetiae") & sp2 %in% c("impolita", "calciphila", "labillardierei"))
+
+
+############################################################
+#     Upset plot intersection between species pair DEGs    #
+############################################################
+
+# create the intersect list
+listInput<-list(`calciphila vs sp. Pic N'Ga` = cal_spn$results %>% data.frame() %>% filter(padj < 0.05 & log2FoldChange > 2) %>% rownames(),
+                `hequetiae vs labillardierei` = heq_lab$results %>% data.frame() %>% filter(padj < 0.05 & log2FoldChange > 2) %>% rownames(),
+                `revolutissima vs impolita` = rev_imp$results %>% data.frame() %>% filter(padj < 0.05 & log2FoldChange > 2) %>% rownames())
+
+
+# plot upset plot
+upset(fromList(listInput), order.by = "freq", nsets = 5)
+
+# get genes DE between each ultramafic-nonultramafic pair
+ultramaf_nonultramaf_intersect <- intersect(intersect(listInput$`calciphila vs sp. Pic N'Ga`, listInput$`hequetiae vs labillardierei`), listInput$`revolutissima vs impolita`)
+
+
+############################################################
+#    Eulerr plot intersection between species pair DEGs    #
+############################################################
+
+fit2<-euler(listInput) 
+
+euler_pairs<-plot(fit2,
+     fills = c("dodgerblue2", "darkolivegreen3", "hotpink2"),
+     edges = TRUE,
+     fontsize = 50,
+     labels = NULL,
+     quantities = list(fontsize = 13),
+     legend = list(labels = c("calciphila vs sp. Pic N'Ga", "hequetiae vs labillardierei", "revolutissima vs impolita"), fontsize=20, side = "bottom"),
+     alpha=0.8)
+
+
+tree_pairs<-p2 + scale_color_manual(values=colours_labels_pairs, limits=species_tree$tip.label)
+
+
+pdf("euler_with_tree.pdf", width = 8, height = 7)
+grid.arrange(tree_pairs, euler_pairs, nrow = 1)
+dev.off()
+
+
+
+
+############################################################
+#               plot average expression of DEGs            #
+############################################################
+
+cal_av<-counts(cal_spn$dds, normalized=TRUE) %>% data.frame() %>% dplyr::select(cal_9a, cal_9b, cal_9c1, cal_9c2, cal_9d1, cal_9d2) %>% rowMeans()
+pic_av<-counts(cal_spn$dds, normalized=TRUE) %>% data.frame() %>% dplyr::select(spn_18b, spn_18c, spn_19a, spn_19b) %>% rowMeans()
+
+heq_av<-counts(heq_lab$dds, normalized=TRUE) %>% data.frame() %>% dplyr::select(heq_13a, heq_13b, heq_13br, heq_13c, heq_13d, heq_14a, heq_14b, heq_14c, heq_14cr) %>% rowMeans()
+lab_av<-counts(heq_lab$dds, normalized=TRUE) %>% data.frame() %>% dplyr::select(lab_11a1, lab_11a2, lab_12a, lab_12b, lab_12c1, lab_12c2) %>% rowMeans()
+
+imp_av<-counts(rev_imp$dds, normalized=TRUE) %>% data.frame() %>% dplyr::select(imp_3ba1, imp_3ba2, imp_3bb, imp_3bc, imp_3bd1, imp_3bd2, imp_3bd2r) %>% rowMeans()
+rev_av<-counts(rev_imp$dds, normalized=TRUE) %>% data.frame() %>% dplyr::select(rev_24a1, rev_24a1r, rev_24a2, rev_24b1, rev_24b2, rev_25a1, rev_25a2, rev_25a3, rev_25aq3r) %>% rowMeans()
+
+set.seed(3)
+average_expression_plot<-inner_join(inner_join(
+  data.frame(cal_av, pic_av) %>% rownames_to_column(), 
+  data.frame(heq_av, lab_av) %>% rownames_to_column()), 
+  data.frame(imp_av, rev_av) %>% rownames_to_column()) %>% 
+  filter(rowname %in% ultramaf_nonultramaf_intersect) %>% 
+  melt() %>%
+  mutate(rowname=str_replace(rowname, ".t1", "")) %>%
+  mutate(pair_name=case_when(variable %in% c("cal_av", "pic_av") ~ "Sp. Pic N'Ga - Calciphila",
+                             variable %in% c("heq_av", "lab_av") ~ "Hequetiae - Labillardierei",
+                             variable %in% c("rev_av", "imp_av") ~ "Revolutissima - Impolita"),
+         soiltype=case_when(variable %in% c("rev_av", "heq_av", "pic_av") ~ "Ultramafic",
+                            variable %in% c("cal_av", "lab_av", "imp_av") ~ "Non-Ultramafic")) %>%
+  ggplot(aes(x=rowname, y=(value), fill=soiltype)) + 
+  #geom_point(size= 6, position=position_jitter(h=0, w=0.2), aes(shape=soiltype, color=pair_name)) +
+  geom_point(size= 6, alpha=0.55, aes(shape=soiltype, color=pair_name)) +
+  scale_shape_manual(values=c(17, 19)) +
+  scale_colour_manual(values=c("darkolivegreen3", "hotpink2", "dodgerblue2")) +
+  ylab("Normalised Gene Expression") +
+  xlab("Gene") + 
+  theme(axis.text = element_text(size=10), 
+        axis.title = element_text(size=15),
+        legend.text = element_text(size=13),
+        legend.title = element_blank(),
+        axis.text.x = element_text(angle = 25, vjust = 0.5, hjust=0.3),
+        panel.background = element_rect(fill = 'white', colour = 'grey72'))
+
+pdf("average_expressionDEGs.pdf", width=8, height=5)
+average_expression_plot 
+dev.off()
+
+
+
+#####################################################################################
+#    get all counts no filter and draw heatmap of different gene copy expression    #
+#####################################################################################
+
+
+cal_spn_nothresh <-specify_comparison(all_samples, all_counts, "species %in% c('cal', 'spn')") %>% run_diffexp("species", "spn", "cal", all_lengths, cpm_threshold=0, min_samples=0)
+heq_lab_nothresh <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'lab')") %>% run_diffexp("species", "heq", "lab", all_lengths, cpm_threshold=0, min_samples=0)
+rev_imp_nothresh<-specify_comparison(all_samples, all_counts, "species %in% c('rev', 'imp')") %>% run_diffexp("species", "rev", "imp", all_lengths, cpm_threshold=0, min_samples=0)
+
+
+
+
+# annotate the species on heatmap using this dataframe
+annotation_values<-rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t(),
+      counts(heq_lab_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t(),
+      counts(rev_imp_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t()) %>% 
+  rownames()
+annotation_species<-c(rep("calciphila", 6), rep("Sp. Pic N'Ga", 4), rep("Hequetiae", 9), 
+                      rep("Labillardiei", 6), rep("impolita", 7), rep("revolutissima", 9)) %>% data.frame()
+rownames(annotation_species) <- annotation_values
+
+
+rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t(),
+      counts(heq_lab_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t(),
+      counts(rev_imp_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t()) %>% 
+  pheatmap(scale="row", cluster_rows = FALSE, annotation_row=annotation_species)
+
+
+rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g594.t1", "g600.t1"),] %>% t(),
+      counts(heq_lab_nothresh$dds, normalized=TRUE)[c("g594.t1", "g600.t1"),] %>% t(),
+      counts(rev_imp_nothresh$dds, normalized=TRUE)[c("g594.t1", "g600.t1"),] %>% t()) %>% 
+  pheatmap(cluster_rows = FALSE, annotation_row=annotation_species, show_rownames = TRUE)
+
+
+rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g21937.t1"),] %>% data.frame(),
+      counts(heq_lab_nothresh$dds, normalized=TRUE)[c("g21937.t1"),] %>% data.frame(),
+      counts(rev_imp_nothresh$dds, normalized=TRUE)[c("g21937.t1"),] %>% data.frame()) %>%  t() %>% log1p() %>%
+  pheatmap(cluster_rows = FALSE, cluster_cols = FALSE, show_rownames = TRUE)
+
+
+
+
 
 
 
@@ -228,17 +387,8 @@ turner<-c("g10554.t1", "g11922.t1", "g1383.t1", "g16134.t1", "g21710.t1", "g2383
           "g23837.t2", "g24433.t1", "g24434.t1", "g264.t1", "g3633.t1", "g4959.t1", 
           "g6362.t1", "g7194.t1", "g7406.t1", "g9069.t1")
 
-te_gene_mine<-dna_met_vie
 
 
-ultra_volc$results
-
-pheatmap::pheatmap(assay(ultra_volc$dds)[test,], 
-                   scale = "row", 
-                   cluster_cols = FALSE,
-                   cluster_rows = TRUE,
-                   show_rownames = FALSE,
-                   treeheight_row = 0, treeheight_col = 0)
 
 
 
