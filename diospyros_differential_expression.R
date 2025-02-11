@@ -334,8 +334,6 @@ heq_lab_nothresh <-specify_comparison(all_samples, all_counts, "species %in% c('
 rev_imp_nothresh<-specify_comparison(all_samples, all_counts, "species %in% c('rev', 'imp')") %>% run_diffexp("species", "rev", "imp", all_lengths, cpm_threshold=0, min_samples=0)
 
 
-
-
 # annotate the species on heatmap using this dataframe
 annotation_values<-rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t(),
       counts(heq_lab_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t(),
@@ -362,6 +360,123 @@ rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g21937.t1"),] %>% data.fr
       counts(heq_lab_nothresh$dds, normalized=TRUE)[c("g21937.t1"),] %>% data.frame(),
       counts(rev_imp_nothresh$dds, normalized=TRUE)[c("g21937.t1"),] %>% data.frame()) %>%  t() %>% log1p() %>%
   pheatmap(cluster_rows = FALSE, cluster_cols = FALSE, show_rownames = TRUE)
+
+
+
+
+
+#############################################################################################################################
+#  get genes DE between all ultramafic vs nonultramafic species, AND genes which are DE between impolita and revolutissima  #
+#     Then need to find their homologs in each genome rev and imp using orthofinder output                                  #
+#        we will then ask whether the genes or gene families of DEGs are more proximal to a TE than expected                #
+#############################################################################################################################
+
+
+# get orthogroup info
+orthogroups<-read_delim("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_family_analysis/diospyros_gene_family_analysis/fastas/OrthoFinder/Results_Nov14/Orthogroups/Orthogroups.tsv")
+strings_to_remove<-c("_braker.aa", ".aa")
+for (strings in strings_to_remove){
+  colnames(orthogroups)<-str_replace(colnames(orthogroups), strings, "")
+}
+orthogroups_long_list <- lapply(orthogroups %>% dplyr::select(-Orthogroup) %>% colnames(), 
+                                function(x) orthogroups %>% 
+                                  dplyr::select(Orthogroup, x) %>% 
+                                  separate_longer_delim(c(x), delim = ", ") %>%
+                                  set_colnames(c("Orthogroup", "gene")) %>%
+                                  mutate(species=x))
+orthogroups_long<-data.frame(do.call(rbind, orthogroups_long_list))
+orthogroups_long %<>% filter(species != "doleifera") %>% 
+  mutate(gene = str_replace(gene, ".t1", "")) %>%
+  mutate(species=case_when(species == "impolita" ~ "D. impolita",
+                           species == "pancheri" ~ "D. pancheri",
+                           species == "doleifera" ~ "D. doleifera",
+                           species == "revolutissima" ~ "D. revolutissima",
+                           species == "sandwicensis" ~ "D. sandwicensis",
+                           species == "vieillardii" ~ "D. vieillardii",
+                           species == "yahouensis" ~ "D. yahouensis"))
+
+
+# get genes DE between all ultramafic vs non-ultramafic pairs
+ultramafic_DEGs<-intersect(intersect(listInput$`calciphila vs sp. Pic N'Ga`, listInput$`hequetiae vs labillardierei`), listInput$`revolutissima vs impolita`) %>%
+  str_replace(".t1", "")
+
+# plot copy number of each ortogrop per species
+ultramafic_OGs<-orthogroups_long %>% filter(gene %in% ultramafic_DEGs & species == "D. vieillardii") %>% pull(Orthogroup)
+ultramafic_OG_copy_number<-orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs) %>% 
+  group_by(Orthogroup, species) %>%
+  summarise(gene_count = length(gene)) %>% 
+  data.frame()
+ultramafic_OG_copy_number$species <-factor(ultramafic_OG_copy_number$species, levels=c("D. sandwicensis", "D. vieillardii", "D. pancheri", "D. yahouensis", "D. impolita", "D. revolutissima"))
+ggplot(ultramafic_OG_copy_number, aes(x=species, y=gene_count, group=Orthogroup, colour=Orthogroup)) +
+  geom_line(size=1) +
+  geom_point(size=6) +
+  scale_colour_manual(values=c("red", "orange", "pink", "green", "blue", "grey", "black", "purple", "yellow", "brown", "dodgerblue2", "gold", "aquamarine"))
+
+
+
+
+
+
+
+
+# get DEG homologs DE between impolita and revolutissima
+imp_rev_DEGs<-listInput$`revolutissima vs impolita` %>% str_replace(".t1", "") %>% str_replace(".t2", "") %>% str_replace(".t3", "") %>% str_replace(".t4", "") %>% str_replace(".t5", "")
+imp_rev_OGs<-orthogroups_long %>% filter(gene %in% imp_rev_DEGs & species == "D. vieillardii") %>% pull(Orthogroup)
+impolita_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. impolita" & gene != "NA") %>% pull(gene)
+revolutissima_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. revolutissima" & gene != "NA") %>% pull(gene)
+
+
+
+impolita.gene_te<-read_delim("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_te_overlap/impolita.gene_te_dists", col_names = c("annotation", "gene", "gene_dist", "te_length", "insertion_date"))
+revolutissima.gene_te<-read_delim("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_te_overlap/revolutissima.gene_te_dists", col_names = c("annotation", "gene", "gene_dist", "te_length", "insertion_date"))
+
+slice_sample(impolita.gene_te, n=length(impolita_DE_orthogroup_genes)) %>% mutate(species="impolita_random")
+slice_sample(revolutissima.gene_te, n=length(impolita_DE_orthogroup_genes)) %>% mutate(species="revolutissima_random")
+
+rbind(impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% mutate(comp="impolita_DE", species="impolita"), 
+      revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>% mutate(comp="revolutissima_DE", species="revolutissima"),
+      slice_sample(impolita.gene_te, n=length(impolita_DE_orthogroup_genes)) %>% mutate(comp="impolita_random", species="impolita"),
+      slice_sample(revolutissima.gene_te, n=length(revolutissima_DE_orthogroup_genes)) %>% mutate(comp="revolutissima_random", species="revolutissima")) %>% 
+  filter(abs(gene_dist) < 5000) %>%
+  ggplot(aes(x=gene_dist, fill=comp)) +
+  geom_histogram(bins=100) +
+  scale_fill_manual(values=c("red", "pink", "blue", "lightskyblue")) +
+  facet_wrap(~species)
+
+rbind(impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% mutate(comp="impolita_DE", species="impolita"), 
+      revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>% mutate(comp="revolutissima_DE", species="revolutissima"),
+      slice_sample(impolita.gene_te, n=length(impolita_DE_orthogroup_genes)) %>% mutate(comp="impolita_random", species="impolita"),
+      slice_sample(revolutissima.gene_te, n=length(revolutissima_DE_orthogroup_genes)) %>% mutate(comp="revolutissima_random", species="revolutissima")
+      ) %>%
+  filter(abs(gene_dist) < 5000) %>%
+  
+
+  
+
+
+  #group_by(species, comp) %>%
+  #summarise(mean = mean(gene_dist), sdtev = sd(gene_dist), mdn=median(gene_dist))
+
+mean(c(-10, -10, 1, 100))
+
+impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% 
+  ggplot(aes(x=gene_dist)) +
+  geom_histogram(size=2, shape=23)
+
+
+
+
+
+
+orthogroups_long %>% filter(Orthogroup == "OG0000069" & species == "D. impolita")
+
+
+orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs & species == "D. revolutissima")
+
+
+
+
+
 
 
 
