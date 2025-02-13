@@ -425,34 +425,88 @@ imp_rev_OGs<-orthogroups_long %>% filter(gene %in% imp_rev_DEGs & species == "D.
 impolita_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. impolita" & gene != "NA") %>% pull(gene)
 revolutissima_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. revolutissima" & gene != "NA") %>% pull(gene)
 
+impolita_ultramafic_orthogroup_genes<- orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs & species == "D. impolita" & gene != "NA") %>% pull(gene)
+revolutissima_ultramafic_orthogroup_genes<- orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs & species == "D. revolutissima" & gene != "NA") %>% pull(gene)
 
+  
 
 impolita.gene_te<-read_delim("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_te_overlap/impolita.gene_te_dists", col_names = c("annotation", "gene", "gene_dist", "te_length", "insertion_date"))
 revolutissima.gene_te<-read_delim("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_te_overlap/revolutissima.gene_te_dists", col_names = c("annotation", "gene", "gene_dist", "te_length", "insertion_date"))
 
-slice_sample(impolita.gene_te, n=length(impolita_DE_orthogroup_genes)) %>% mutate(species="impolita_random")
-slice_sample(revolutissima.gene_te, n=length(impolita_DE_orthogroup_genes)) %>% mutate(species="revolutissima_random")
 
 rbind(impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% mutate(comp="impolita_DE", species="impolita"), 
       revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>% mutate(comp="revolutissima_DE", species="revolutissima"),
       slice_sample(impolita.gene_te, n=length(impolita_DE_orthogroup_genes)) %>% mutate(comp="impolita_random", species="impolita"),
       slice_sample(revolutissima.gene_te, n=length(revolutissima_DE_orthogroup_genes)) %>% mutate(comp="revolutissima_random", species="revolutissima")) %>% 
-  filter(abs(gene_dist) < 5000) %>%
+  filter(abs(gene_dist) < 200000) %>%
   ggplot(aes(x=gene_dist, fill=comp)) +
   geom_histogram(bins=100) +
   scale_fill_manual(values=c("red", "pink", "blue", "lightskyblue")) +
   facet_wrap(~species)
 
-rbind(impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% mutate(comp="impolita_DE", species="impolita"), 
-      revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>% mutate(comp="revolutissima_DE", species="revolutissima"),
-      slice_sample(impolita.gene_te, n=length(impolita_DE_orthogroup_genes)) %>% mutate(comp="impolita_random", species="impolita"),
-      slice_sample(revolutissima.gene_te, n=length(revolutissima_DE_orthogroup_genes)) %>% mutate(comp="revolutissima_random", species="revolutissima")
-      ) %>%
-  filter(abs(gene_dist) < 5000) %>%
-  
 
-  
 
+
+impolita_de_te <- impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% mutate(comp="impolita_DE", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist) %>% mutate(cumulative=cumsum(gene_dist))
+set.seed(2)
+impolita_rand_te <- sample_n(impolita.gene_te, nrow(impolita_de_te)) %>% mutate(comp="impolita_random", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist) %>% mutate(cumulative=cumsum(gene_dist))
+
+revolutissima_de_te <- revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>% mutate(comp="revolutissima_DE", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist) %>% mutate(cumulative=cumsum(gene_dist))
+set.seed(2)
+revolutissima_rand_te<-sample_n(revolutissima.gene_te, nrow(revolutissima_de_te)) %>% mutate(comp="revolutissima_random", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist) %>% mutate(cumulative=cumsum(gene_dist))
+
+
+
+rbind(revolutissima_de_te, revolutissima_rand_te, impolita_de_te, impolita_rand_te) %>% ggplot(aes(x = as.numeric(rowname), y = cumulative, group=comp, colour=comp)) + geom_line()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+x %>% filter(rowname == 1)
 
   #group_by(species, comp) %>%
   #summarise(mean = mean(gene_dist), sdtev = sd(gene_dist), mdn=median(gene_dist))
