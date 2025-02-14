@@ -282,14 +282,19 @@ dev.off()
 #               plot average expression of DEGs            #
 ############################################################
 
-cal_av<-counts(cal_spn$dds, normalized=TRUE) %>% data.frame() %>% dplyr::select(cal_9a, cal_9b, cal_9c1, cal_9c2, cal_9d1, cal_9d2) %>% rowMeans()
-pic_av<-counts(cal_spn$dds, normalized=TRUE) %>% data.frame() %>% dplyr::select(spn_18b, spn_18c, spn_19a, spn_19b) %>% rowMeans()
 
-heq_av<-counts(heq_lab$dds, normalized=TRUE) %>% data.frame() %>% dplyr::select(heq_13a, heq_13b, heq_13br, heq_13c, heq_13d, heq_14a, heq_14b, heq_14c, heq_14cr) %>% rowMeans()
-lab_av<-counts(heq_lab$dds, normalized=TRUE) %>% data.frame() %>% dplyr::select(lab_11a1, lab_11a2, lab_12a, lab_12b, lab_12c1, lab_12c2) %>% rowMeans()
+cal_av<-fpm(cal_spn$dds) %>% data.frame() %>% dplyr::select(cal_9a, cal_9b, cal_9c1, cal_9c2, cal_9d1, cal_9d2) %>% rowMeans()
+pic_av<-fpm(cal_spn$dds) %>% data.frame() %>% dplyr::select(spn_18b, spn_18c, spn_19a, spn_19b) %>% rowMeans()
 
-imp_av<-counts(rev_imp$dds, normalized=TRUE) %>% data.frame() %>% dplyr::select(imp_3ba1, imp_3ba2, imp_3bb, imp_3bc, imp_3bd1, imp_3bd2, imp_3bd2r) %>% rowMeans()
-rev_av<-counts(rev_imp$dds, normalized=TRUE) %>% data.frame() %>% dplyr::select(rev_24a1, rev_24a1r, rev_24a2, rev_24b1, rev_24b2, rev_25a1, rev_25a2, rev_25a3, rev_25aq3r) %>% rowMeans()
+heq_av<-fpm(heq_lab$dds) %>% data.frame() %>% dplyr::select(heq_13a, heq_13b, heq_13br, heq_13c, heq_13d, heq_14a, heq_14b, heq_14c, heq_14cr) %>% rowMeans()
+lab_av<-fpm(heq_lab$dds) %>% data.frame() %>% dplyr::select(lab_11a1, lab_11a2, lab_12a, lab_12b, lab_12c1, lab_12c2) %>% rowMeans()
+
+imp_av<-fpm(rev_imp$dds) %>% data.frame() %>% dplyr::select(imp_3ba1, imp_3ba2, imp_3bb, imp_3bc, imp_3bd1, imp_3bd2, imp_3bd2r) %>% rowMeans()
+rev_av<-fpm(rev_imp$dds) %>% data.frame() %>% dplyr::select(rev_24a1, rev_24a1r, rev_24a2, rev_24b1, rev_24b2, rev_25a1, rev_25a2, rev_25a3, rev_25aq3r) %>% rowMeans()
+
+
+results(cal_spn$dds)[ultramaf_nonultramaf_intersect,] %>% data.frame() %>% arrange(log2FoldChange)
+counts(cal_spn$dds, normalized=TRUE) %>% data.frame() %>% rownames_to_column() %>% filter(rowname %in% ultramaf_nonultramaf_intersect)
 
 set.seed(3)
 average_expression_plot<-inner_join(inner_join(
@@ -309,16 +314,17 @@ average_expression_plot<-inner_join(inner_join(
   geom_point(size= 6, alpha=0.55, aes(shape=soiltype, color=pair_name)) +
   scale_shape_manual(values=c(17, 19)) +
   scale_colour_manual(values=c("darkolivegreen3", "hotpink2", "dodgerblue2")) +
-  ylab("Normalised Gene Expression") +
+  ylab("Counts per Million") +
   xlab("Gene") + 
   theme(axis.text = element_text(size=10), 
         axis.title = element_text(size=15),
         legend.text = element_text(size=13),
         legend.title = element_blank(),
         axis.text.x = element_text(angle = 25, vjust = 0.5, hjust=0.3),
-        panel.background = element_rect(fill = 'white', colour = 'grey72'))
+        panel.background = element_rect(fill = 'white', colour = 'grey72'),
+        legend.position=c(.75, 0.8))
 
-pdf("average_expressionDEGs.pdf", width=8, height=5)
+pdf("average_expressionDEGs.pdf", width=6, height=6)
 average_expression_plot 
 dev.off()
 
@@ -412,8 +418,9 @@ ggplot(ultramafic_OG_copy_number, aes(x=species, y=gene_count, group=Orthogroup,
   geom_point(size=6) +
   scale_colour_manual(values=c("red", "orange", "pink", "green", "blue", "grey", "black", "purple", "yellow", "brown", "dodgerblue2", "gold", "aquamarine"))
 
-
-
+# get genes DE in all ulramafic-nonultramafic species apirs and their orthogrouops
+impolita_ultramafic_orthogroup_genes<- orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs & species == "D. impolita" & gene != "NA") %>% pull(gene)
+revolutissima_ultramafic_orthogroup_genes<- orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs & species == "D. revolutissima" & gene != "NA") %>% pull(gene)
 
 
 
@@ -425,109 +432,83 @@ imp_rev_OGs<-orthogroups_long %>% filter(gene %in% imp_rev_DEGs & species == "D.
 impolita_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. impolita" & gene != "NA") %>% pull(gene)
 revolutissima_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. revolutissima" & gene != "NA") %>% pull(gene)
 
-impolita_ultramafic_orthogroup_genes<- orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs & species == "D. impolita" & gene != "NA") %>% pull(gene)
-revolutissima_ultramafic_orthogroup_genes<- orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs & species == "D. revolutissima" & gene != "NA") %>% pull(gene)
 
   
-
+# read in the gene-TE overlaps
 impolita.gene_te<-read_delim("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_te_overlap/impolita.gene_te_dists", col_names = c("annotation", "gene", "gene_dist", "te_length", "insertion_date"))
 revolutissima.gene_te<-read_delim("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_te_overlap/revolutissima.gene_te_dists", col_names = c("annotation", "gene", "gene_dist", "te_length", "insertion_date"))
 
+# get gene-te distances where gene is in DE list, sampling the same number of gene-te distances randomly for comparison
+impolita_de_te <- impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% mutate(comp="D. impolita DE", gene_set="Differentially Expressed", species="D. impolita")
+impolita_rand_te <- sample_n(impolita.gene_te, nrow(impolita_de_te)) %>% mutate(comp="D. impolita random", gene_set="Random", species="D. impolita")
+revolutissima_de_te <- revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>% mutate(comp="D. revolutissima DE", gene_set="Differentially Expressed", species="D. revolutissima")
+revolutissima_rand_te<-sample_n(revolutissima.gene_te, nrow(revolutissima_de_te)) %>% mutate(comp="D. revolutissima random", gene_set="Random", species="D. revolutissima")
 
-rbind(impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% mutate(comp="impolita_DE", species="impolita"), 
-      revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>% mutate(comp="revolutissima_DE", species="revolutissima"),
-      slice_sample(impolita.gene_te, n=length(impolita_DE_orthogroup_genes)) %>% mutate(comp="impolita_random", species="impolita"),
-      slice_sample(revolutissima.gene_te, n=length(revolutissima_DE_orthogroup_genes)) %>% mutate(comp="revolutissima_random", species="revolutissima")) %>% 
-  filter(abs(gene_dist) < 200000) %>%
+
+a<-rbind(impolita_de_te, impolita_rand_te, revolutissima_de_te, revolutissima_rand_te) %>%
+  filter(abs(gene_dist) < 100000) %>%
+  mutate(gene_dist = abs(gene_dist)) %>%
   ggplot(aes(x=gene_dist, fill=comp)) +
   geom_histogram(bins=100) +
-  scale_fill_manual(values=c("red", "pink", "blue", "lightskyblue")) +
-  facet_wrap(~species)
+  scale_fill_manual(values=c("navy", "cornflowerblue", "maroon", "orchid1")) +
+  facet_wrap(~comp) +
+  theme(axis.text = element_text(size=13), 
+        axis.title = element_text(size=25),
+        legend.text = element_text(size=14),
+        legend.title = element_blank(),
+        panel.background = element_rect(fill = 'white', colour = 'grey72'),
+        legend.position=c(.19, 0.92),
+        legend.background = element_rect(fill='transparent'),
+        panel.spacing = unit(1, "lines"),
+        plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"),
+        strip.background = element_blank(),
+        strip.text.x = element_blank()) +
+  xlab("Distance to Nearest TE") +
+  ylab("Count")
 
 
 
 
-impolita_de_te <- impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% mutate(comp="impolita_DE", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist) %>% mutate(cumulative=cumsum(gene_dist))
+# plot a basic line chart of the first 1000 genes and their TE dists in DE and random 
+plot(head(impolita_de_te, n=200)$gene_dist, head(impolita_rand_te, n=200)$gene_dist)
+abline(v=1000, col="blue")
+abline(h=1000, col="blue")
+
+
+
+impolita_de_te <- impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% mutate(comp="impolita_DE", gene_set="Differentially Expressed", species="D. impolita", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist, gene_set, species) %>% mutate(cumulative=cumsum(gene_dist))
 set.seed(2)
-impolita_rand_te <- sample_n(impolita.gene_te, nrow(impolita_de_te)) %>% mutate(comp="impolita_random", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist) %>% mutate(cumulative=cumsum(gene_dist))
+impolita_rand_te <- sample_n(impolita.gene_te, nrow(impolita_de_te)) %>% mutate(comp="impolita_random", gene_set="Random", species="D. impolita", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist, gene_set, species) %>% mutate(cumulative=cumsum(gene_dist))
 
-revolutissima_de_te <- revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>% mutate(comp="revolutissima_DE", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist) %>% mutate(cumulative=cumsum(gene_dist))
+revolutissima_de_te <- revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>% mutate(comp="revolutissima_DE", gene_set="Differentially Expressed", species="D. revolutissima", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist, gene_set, species) %>% mutate(cumulative=cumsum(gene_dist))
 set.seed(2)
-revolutissima_rand_te<-sample_n(revolutissima.gene_te, nrow(revolutissima_de_te)) %>% mutate(comp="revolutissima_random", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist) %>% mutate(cumulative=cumsum(gene_dist))
+revolutissima_rand_te<-sample_n(revolutissima.gene_te, nrow(revolutissima_de_te)) %>% mutate(comp="revolutissima_random", gene_set="Random", species="D. revolutissima", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist, gene_set, species) %>% mutate(cumulative=cumsum(gene_dist))
 
+b<-rbind(revolutissima_de_te, revolutissima_rand_te, impolita_de_te, impolita_rand_te) %>% 
+  filter(abs(gene_dist) < 100000) %>%
+  ggplot(aes(x = as.numeric(rowname), y = cumulative, group=comp, colour=species, linetype=gene_set)) + 
+  geom_line(size=1.3) +
+  scale_colour_manual(values=c("navy", "maroon")) + 
+  scale_linetype_manual(values=c("solid", "dashed")) + 
+  theme(axis.text = element_text(size=20), 
+        axis.title = element_text(size=25),
+        legend.text = element_text(size=22),
+        legend.title = element_blank(),
+        panel.background = element_rect(fill = 'white', colour = 'grey72'),
+        legend.position=c(.3, 0.8),
+        plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")) +
+  ylab("Cumulative distance to nearest LTR") +
+  xlab("Index")
 
 
-rbind(revolutissima_de_te, revolutissima_rand_te, impolita_de_te, impolita_rand_te) %>% ggplot(aes(x = as.numeric(rowname), y = cumulative, group=comp, colour=comp)) + geom_line()
 
+pdf("distance_to_te_de_random_genes.pdf", height=9, width=16)
+grid.arrange(a, b, nrow = 1)
+dev.off()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-x %>% filter(rowname == 1)
-
-  #group_by(species, comp) %>%
-  #summarise(mean = mean(gene_dist), sdtev = sd(gene_dist), mdn=median(gene_dist))
-
-mean(c(-10, -10, 1, 100))
-
-impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% 
-  ggplot(aes(x=gene_dist)) +
-  geom_histogram(size=2, shape=23)
-
-
-
-
-
-
-orthogroups_long %>% filter(Orthogroup == "OG0000069" & species == "D. impolita")
-
-
-orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs & species == "D. revolutissima")
-
-
+# next do a fishers test for this to put a p-value on it
 
 
 
