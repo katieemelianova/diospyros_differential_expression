@@ -15,6 +15,11 @@ library(pheatmap)
 library(ggtree)
 library(reshape2)
 source("differential_expression_functions.R")
+source("/Users/katieemelianova/Desktop/Diospyros/diospyros_R_functions/diospyros_soil_leaf_species_element_dataset.R")
+source("/Users/katieemelianova/Desktop/Diospyros/diospyros_R_functions/diospyros_orthogroups_long.R")
+
+
+
 
 ############################################
 #        load in the GO ID mappings        #
@@ -102,12 +107,7 @@ all_dds <- DESeqDataSetFromMatrix(countData = all_comparison[["counts"]],
                                   colData = all_comparison[["samples"]],
                                   design = ~ species) %>%
   varianceStabilizingTransformation()
-
 pca_all <-plotPCA(all_dds, intgroup=c("species", "pseudoreplicate"), ntop = 5000, returnData = TRUE)
-
-
-#species_colours <- c("darkolivegreen4", "royalblue3", "orchid3", "steelblue1", "salmon3", "orange2")
-
 species_colours <- c("#68C7AA", "#F1A1FD", "#AD1640", "#FF007E", "#22660D", "#FE841C")
 
 pca_all %<>% mutate(species=case_when(species == "cal" ~ "calciphila",
@@ -120,10 +120,6 @@ pca_all %<>% mutate(species=case_when(species == "cal" ~ "calciphila",
 ##########################################
 #          plot PCA with phylo tree      #
 ##########################################
-
-
-ggplot(pca_all, aes(PC1, PC2)) +          
-  geom_point(aes(fill = species, colour=species))
 
 pic1<-ggplot(pca_all, aes(PC1, PC2)) +          
   geom_point(size = 1, stroke = 5, aes(fill = species, colour=species)) + 
@@ -162,21 +158,17 @@ colours_labels_pairs <- case_when(species_tree$tip.label == "calciphila" ~ "dodg
 
 dd <- data.frame(taxa=species_tree$tip.label, tipcols=colours_tips, labelcols=colours_labels)
 p<-ggtree(species_tree, size=1)
-p <- p %<+% dd #+ geom_tippoint(aes(color=tipcols), size=6, show.legend=FALSE) + scale_color_manual(values=c("firebrick1", "gold1"), limits = c("Ultramafic", "Volcanic"), na.value = "grey77") 
-#p <- p + geom_tippoint(size=6, show.legend=FALSE, colour="blue")
+p <- p %<+% dd
 p2<-p + new_scale_color() + geom_tiplab(size=5.5, aes(color=species), offset=0.005, show.legend=FALSE) + 
   scale_color_manual(values=colours_labels, limits=species_tree$tip.label) + 
   theme(legend.title = element_blank(),
         legend.text = element_text(size=12)) +
   expand_limits(x = 0.15)
 
-
-
-
 ##############################
 #    load in elements data   #
 ##############################
-source("/Users/katieemelianova/Desktop/Diospyros/diospyros_R_functions/diospyros_soil_leaf_species_element_dataset.R")
+
 elements<-get_element_dataset()
 # match tiplab name with element name
 elements$species[elements$species == "sp PicN'ga"] <- "sp. Pic N'ga"
@@ -189,10 +181,6 @@ pic2<-facet_plot(p2, panel="Relative Soil Nickel Concentration", data=test, geom
         axis.ticks.y=element_blank()
         ) + 
   scale_fill_manual(values=c("#68C7AA", "#F1A1FD", "#AD1640", "#FF007E", "#22660D", "#FE841C"))
-
-
-# a nice example of tree + boxplot
-# https://github.com/YuLab-SMU/ggtree/issues/96
 
 pdf("PCA_with_tree.pdf", width = 15, height = 7)
 grid.arrange(pic1, pic2, nrow = 1)
@@ -275,8 +263,6 @@ tree_pairs<-p2 + scale_color_manual(values=colours_labels_pairs, limits=species_
 #dev.off()
 
 
-
-
 ############################################################
 #               plot average expression of DEGs            #
 ############################################################
@@ -292,10 +278,6 @@ imp_av<-fpm(rev_imp$dds) %>% data.frame() %>% dplyr::select(imp_3ba1, imp_3ba2, 
 rev_av<-fpm(rev_imp$dds) %>% data.frame() %>% dplyr::select(rev_24a1, rev_24a1r, rev_24a2, rev_24b1, rev_24b2, rev_25a1, rev_25a2, rev_25a3, rev_25aq3r) %>% rowMeans()
 
 
-results(cal_spn$dds)[ultramaf_nonultramaf_intersect,] %>% data.frame() %>% arrange(log2FoldChange)
-counts(cal_spn$dds, normalized=TRUE) %>% data.frame() %>% rownames_to_column() %>% filter(rowname %in% ultramaf_nonultramaf_intersect)
-
-set.seed(3)
 average_expression_plot<-inner_join(inner_join(
   data.frame(cal_av, pic_av) %>% rownames_to_column(), 
   data.frame(heq_av, lab_av) %>% rownames_to_column()), 
@@ -309,7 +291,6 @@ average_expression_plot<-inner_join(inner_join(
          soiltype=case_when(variable %in% c("rev_av", "heq_av", "pic_av") ~ "Ultramafic",
                             variable %in% c("cal_av", "lab_av", "imp_av") ~ "Non-Ultramafic")) %>%
   ggplot(aes(x=rowname, y=(value), fill=soiltype)) + 
-  #geom_point(size= 6, position=position_jitter(h=0, w=0.2), aes(shape=soiltype, color=pair_name)) +
   geom_point(size= 6, alpha=0.55, aes(shape=soiltype, color=pair_name)) +
   scale_shape_manual(values=c(17, 19)) +
   scale_colour_manual(values=c("darkolivegreen3", "hotpink2", "dodgerblue2")) +
@@ -327,83 +308,62 @@ average_expression_plot<-inner_join(inner_join(
 #average_expression_plot 
 #dev.off()
 
-
-
 #####################################################################################
 #    get all counts no filter and draw heatmap of different gene copy expression    #
 #####################################################################################
 
+# get unfiltered deseq objects
+cal_spn_nothresh <- specify_comparison(all_samples, all_counts, "species %in% c('cal', 'spn')") %>% run_diffexp("species", "spn", "cal", all_lengths, cpm_threshold=0, min_samples=0)
+heq_lab_nothresh <- specify_comparison(all_samples, all_counts, "species %in% c('heq', 'lab')") %>% run_diffexp("species", "heq", "lab", all_lengths, cpm_threshold=0, min_samples=0)
+rev_imp_nothresh <- specify_comparison(all_samples, all_counts, "species %in% c('rev', 'imp')") %>% run_diffexp("species", "rev", "imp", all_lengths, cpm_threshold=0, min_samples=0)
 
-cal_spn_nothresh <-specify_comparison(all_samples, all_counts, "species %in% c('cal', 'spn')") %>% run_diffexp("species", "spn", "cal", all_lengths, cpm_threshold=0, min_samples=0)
-heq_lab_nothresh <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'lab')") %>% run_diffexp("species", "heq", "lab", all_lengths, cpm_threshold=0, min_samples=0)
-rev_imp_nothresh<-specify_comparison(all_samples, all_counts, "species %in% c('rev', 'imp')") %>% run_diffexp("species", "rev", "imp", all_lengths, cpm_threshold=0, min_samples=0)
-
-
-# annotate the species on heatmap using this dataframe
-annotation_values<-rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t(),
-      counts(heq_lab_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t(),
-      counts(rev_imp_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t()) %>% 
+# creeate annotation dataframe
+annotation_values <-rbind(counts(cal_spn_nothresh$dds, normalized=TRUE) %>% t(),
+         counts(heq_lab_nothresh$dds, normalized=TRUE) %>% t(),
+         counts(rev_imp_nothresh$dds, normalized=TRUE) %>% t()) %>% 
   rownames()
 annotation_species<-c(rep("calciphila", 6), rep("Sp. Pic N'Ga", 4), rep("Hequetiae", 9), 
                       rep("Labillardiei", 6), rep("impolita", 7), rep("revolutissima", 9)) %>% data.frame()
 rownames(annotation_species) <- annotation_values
 
-
+# draw heatmap
 rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t(),
       counts(heq_lab_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t(),
       counts(rev_imp_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t()) %>% 
   pheatmap(scale="row", cluster_rows = FALSE, annotation_row=annotation_species)
 
 
-rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g594.t1", "g600.t1"),] %>% t(),
-      counts(heq_lab_nothresh$dds, normalized=TRUE)[c("g594.t1", "g600.t1"),] %>% t(),
-      counts(rev_imp_nothresh$dds, normalized=TRUE)[c("g594.t1", "g600.t1"),] %>% t()) %>% 
-  pheatmap(cluster_rows = FALSE, annotation_row=annotation_species, show_rownames = TRUE)
 
 
-rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g21937.t1"),] %>% data.frame(),
-      counts(heq_lab_nothresh$dds, normalized=TRUE)[c("g21937.t1"),] %>% data.frame(),
-      counts(rev_imp_nothresh$dds, normalized=TRUE)[c("g21937.t1"),] %>% data.frame()) %>%  t() %>% log1p() %>%
-  pheatmap(cluster_rows = FALSE, cluster_cols = FALSE, show_rownames = TRUE)
+######################################################################################################
+#                  get subsets of DEGs - all DEGs and those of large effect                          #
+######################################################################################################
 
+# get the deseq results and get genes to focus on using baseMean as filter
 
+# DEGs
+ultramafic_nonultramafic_DEGs_large_effect <- results(rev_imp$dds)[ultramaf_nonultramaf_intersect,] %>% data.frame() %>% filter(baseMean > 1000 & log2FoldChange > 2) %>% rownames()
+ultramafic_nonultramafic_DEGs <- results(rev_imp$dds)[ultramaf_nonultramaf_intersect,] %>% data.frame() %>% rownames()
+
+# DEG counts
+rev_imp_ultramafic_nonultramafic_counts_large_effect <- fpm(rev_imp$dds) %>% data.frame() %>% rownames_to_column() %>% filter(rowname %in% ultramafic_nonultramafic_DEGs_large_effect)
+rev_imp_ultramafic_nonultramafic_counts <- fpm(rev_imp$dds) %>% data.frame() %>% rownames_to_column() %>% filter(rowname %in% ultramafic_nonultramafic_DEGs)
 
 
 
 #############################################################################################################################
 #                       get genes DE between all ultramafic vs nonultramafic species                                        #
 #     Then need to find their homologs in each genome rev and imp using orthofinder output                                  #
-#        we will then ask whether the genes or gene families of DEGs are more proximal to a TE than expected                #
 #############################################################################################################################
 
-
 # get orthogroup info
-orthogroups<-read_delim("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_family_analysis/diospyros_gene_family_analysis/fastas/OrthoFinder/Results_Nov14/Orthogroups/Orthogroups.tsv")
-strings_to_remove<-c("_braker.aa", ".aa")
-for (strings in strings_to_remove){
-  colnames(orthogroups)<-str_replace(colnames(orthogroups), strings, "")
-}
-orthogroups_long_list <- lapply(orthogroups %>% dplyr::select(-Orthogroup) %>% colnames(), 
-                                function(x) orthogroups %>% 
-                                  dplyr::select(Orthogroup, x) %>% 
-                                  separate_longer_delim(c(x), delim = ", ") %>%
-                                  set_colnames(c("Orthogroup", "gene")) %>%
-                                  mutate(species=x))
-orthogroups_long<-data.frame(do.call(rbind, orthogroups_long_list))
-orthogroups_long %<>% filter(species != "doleifera") %>% 
-  mutate(gene = str_replace(gene, ".t1", "")) %>%
-  mutate(species=case_when(species == "impolita" ~ "D. impolita",
-                           species == "pancheri" ~ "D. pancheri",
-                           species == "doleifera" ~ "D. doleifera",
-                           species == "revolutissima" ~ "D. revolutissima",
-                           species == "sandwicensis" ~ "D. sandwicensis",
-                           species == "vieillardii" ~ "D. vieillardii",
-                           species == "yahouensis" ~ "D. yahouensis"))
-
+orthogroups_long<-get_long_orthogroups()
 
 # get genes DE between all ultramafic vs non-ultramafic pairs
 ultramafic_DEGs <- ultramaf_nonultramaf_intersect %>%
   str_replace(".t1", "")
+
+
 
 # plot copy number of each ortogrop per species
 ultramafic_OGs<-orthogroups_long %>% filter(gene %in% ultramafic_DEGs & species == "D. vieillardii") %>% pull(Orthogroup)
@@ -416,6 +376,10 @@ ggplot(ultramafic_OG_copy_number, aes(x=species, y=gene_count, group=Orthogroup,
   geom_line(size=1) +
   geom_point(size=6) +
   scale_colour_manual(values=c("red", "orange", "pink", "green", "blue", "grey", "black", "purple", "yellow", "brown", "dodgerblue2", "gold", "aquamarine"))
+
+
+
+
 
 # get genes DE in all ulramafic-nonultramafic species apirs and their orthogrouops
 impolita_ultramafic_orthogroup_genes<- orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs & species == "D. impolita" & gene != "NA") %>% pull(gene)
@@ -434,89 +398,8 @@ revolutissima_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% i
 
 
 
-# read in the gene-TE overlaps
-impolita.gene_te<-read.table("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_te_overlap/impolita.gene_te_dists") %>% set_colnames(c("annotation", "gene", "gene_dist", "te_length", "insertion_date"))
-revolutissima.gene_te<-read.table("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_te_overlap/revolutissima.gene_te_dists") 
-
-# get gene-te distances where gene is in DE list, sampling the same number of gene-te distances randomly for comparison
-impolita_de_te <- impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% mutate(comp="D. impolita DE", gene_set="Differentially Expressed", species="D. impolita")
-impolita_rand_te <- sample_n(impolita.gene_te, nrow(impolita_de_te)) %>% mutate(comp="D. impolita random", gene_set="Random", species="D. impolita")
-revolutissima_de_te <- revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>% mutate(comp="D. revolutissima DE", gene_set="Differentially Expressed", species="D. revolutissima")
-revolutissima_rand_te<-sample_n(revolutissima.gene_te, nrow(revolutissima_de_te)) %>% mutate(comp="D. revolutissima random", gene_set="Random", species="D. revolutissima")
 
 
-a<-rbind(impolita_de_te, impolita_rand_te, revolutissima_de_te, revolutissima_rand_te) %>%
-  filter(abs(gene_dist) < 100000) %>%
-  mutate(gene_dist = abs(gene_dist)) %>%
-  ggplot(aes(x=gene_dist, fill=comp)) +
-  geom_density(aes(y = after_stat(count)), alpha = 0.25) +
-  scale_fill_manual(values=c("navy", "cornflowerblue", "maroon", "orchid1")) +
-  facet_wrap(~comp) +
-  theme(axis.text = element_text(size=13), 
-        axis.title = element_text(size=25),
-        legend.text = element_text(size=12),
-        legend.title = element_blank(),
-        panel.background = element_rect(fill = 'white', colour = 'grey72'),
-        legend.position=c(.31, 0.92),
-        legend.background = element_rect(fill='transparent'),
-        panel.spacing = unit(1, "lines"),
-        plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"),
-        strip.background = element_blank(),
-        strip.text.x = element_blank()) +
-  xlab("Distance to Nearest TE") +
-  ylab("Count")
-
-
-
-
-# plot a basic line chart of the first 1000 genes and their TE dists in DE and random 
-#plot(head(impolita_de_te, n=200)$gene_dist, head(impolita_rand_te, n=200)$gene_dist)
-#abline(v=1000, col="blue")
-#abline(h=1000, col="blue")
-
-
-
-impolita_de_te <- impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% mutate(comp="impolita_DE", gene_set="Differentially Expressed", species="D. impolita", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist, gene_set, species) %>% mutate(cumulative=cumsum(gene_dist))
-set.seed(2)
-impolita_rand_te <- sample_n(impolita.gene_te, nrow(impolita_de_te)) %>% mutate(comp="impolita_random", gene_set="Random", species="D. impolita", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist, gene_set, species) %>% mutate(cumulative=cumsum(gene_dist))
-
-revolutissima_de_te <- revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>% mutate(comp="revolutissima_DE", gene_set="Differentially Expressed", species="D. revolutissima", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist, gene_set, species) %>% mutate(cumulative=cumsum(gene_dist))
-set.seed(2)
-revolutissima_rand_te<-sample_n(revolutissima.gene_te, nrow(revolutissima_de_te)) %>% mutate(comp="revolutissima_random", gene_set="Random", species="D. revolutissima", gene_dist=abs(gene_dist)) %>% arrange(gene_dist) %>% rownames_to_column() %>% dplyr::select(rowname, comp, gene_dist, gene_set, species) %>% mutate(cumulative=cumsum(gene_dist))
-
-b<-rbind(revolutissima_de_te, revolutissima_rand_te, impolita_de_te, impolita_rand_te) %>% 
-  filter(abs(gene_dist) < 100000) %>%
-  ggplot(aes(x = as.numeric(rowname), y = cumulative, group=comp, colour=species, linetype=gene_set)) + 
-  geom_line(size=1.3) +
-  scale_colour_manual(values=c("navy", "maroon")) + 
-  scale_linetype_manual(values=c("solid", "dashed")) + 
-  theme(axis.text = element_text(size=20), 
-        axis.title = element_text(size=25),
-        legend.text = element_text(size=22),
-        legend.title = element_blank(),
-        panel.background = element_rect(fill = 'white', colour = 'grey72'),
-        legend.position=c(.3, 0.8),
-        plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")) +
-  ylab("Cumulative distance to nearest LTR") +
-  xlab("Index")
-
-
-
-pdf("distance_to_te_de_random_genes.pdf", height=9, width=16)
-grid.arrange(a, b, nrow = 1)
-dev.off()
-
-
-
-
-
-
-
-
-
-
-
-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. impolita" & gene != "NA")
 
 
 
