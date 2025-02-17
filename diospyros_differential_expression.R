@@ -220,19 +220,18 @@ heq_lab <-specify_comparison(all_samples, all_counts, "species %in% c('heq', 'la
 rev_imp<-specify_comparison(all_samples, all_counts, "species %in% c('rev', 'imp')") %>% run_diffexp("species", "rev", "imp", all_lengths, cpm_threshold=5, min_samples=3)
 
 # write results to file
-cal_spn$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("spPicNga_calciphila.DEG.tsv")
-heq_lab$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("hequetiae_labillardierei.DEG.tsv")
-rev_imp$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("revolutissimae_impolita.DEG.tsv")
+#cal_spn$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("spPicNga_calciphila.DEG.tsv")
+#heq_lab$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("hequetiae_labillardierei.DEG.tsv")
+#rev_imp$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("revolutissimae_impolita.DEG.tsv")
 
 
 ############################################################
 #     Use pairwise FSTs to decide how to pair up species   #
 ############################################################
 
-read.table("avg_fst_lib12345.txt", header=TRUE) %>% filter(sp1 %in% c("impolita") & sp2 %in% c("hequetiae", "revolutissima", "impolita"))
-read.table("avg_fst_lib12345.txt", header=TRUE) %>% filter(sp1 %in% c("labillardierei") & sp2 %in% c("hequetiae", "revolutissima", "impolita"))
-
-read.table("avg_fst_lib12345.txt", header=TRUE) %>% filter(sp1 %in% c("revolutissima", "spPicNga", "hequetiae") & sp2 %in% c("impolita", "calciphila", "labillardierei"))
+#read.table("avg_fst_lib12345.txt", header=TRUE) %>% filter(sp1 %in% c("impolita") & sp2 %in% c("hequetiae", "revolutissima", "impolita"))
+#read.table("avg_fst_lib12345.txt", header=TRUE) %>% filter(sp1 %in% c("labillardierei") & sp2 %in% c("hequetiae", "revolutissima", "impolita"))
+#read.table("avg_fst_lib12345.txt", header=TRUE) %>% filter(sp1 %in% c("revolutissima", "spPicNga", "hequetiae") & sp2 %in% c("impolita", "calciphila", "labillardierei"))
 
 
 ############################################################
@@ -271,9 +270,9 @@ euler_pairs<-plot(fit2,
 tree_pairs<-p2 + scale_color_manual(values=colours_labels_pairs, limits=species_tree$tip.label)
 
 
-pdf("euler_with_tree.pdf", width = 8, height = 7)
-grid.arrange(tree_pairs, euler_pairs, nrow = 1)
-dev.off()
+#pdf("euler_with_tree.pdf", width = 8, height = 7)
+#grid.arrange(tree_pairs, euler_pairs, nrow = 1)
+#dev.off()
 
 
 
@@ -324,9 +323,9 @@ average_expression_plot<-inner_join(inner_join(
         panel.background = element_rect(fill = 'white', colour = 'grey72'),
         legend.position=c(.75, 0.8))
 
-pdf("average_expressionDEGs.pdf", width=6, height=6)
-average_expression_plot 
-dev.off()
+#pdf("average_expressionDEGs.pdf", width=6, height=6)
+#average_expression_plot 
+#dev.off()
 
 
 
@@ -372,7 +371,7 @@ rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g21937.t1"),] %>% data.fr
 
 
 #############################################################################################################################
-#  get genes DE between all ultramafic vs nonultramafic species, AND genes which are DE between impolita and revolutissima  #
+#                       get genes DE between all ultramafic vs nonultramafic species                                        #
 #     Then need to find their homologs in each genome rev and imp using orthofinder output                                  #
 #        we will then ask whether the genes or gene families of DEGs are more proximal to a TE than expected                #
 #############################################################################################################################
@@ -403,7 +402,7 @@ orthogroups_long %<>% filter(species != "doleifera") %>%
 
 
 # get genes DE between all ultramafic vs non-ultramafic pairs
-ultramafic_DEGs<-intersect(intersect(listInput$`calciphila vs sp. Pic N'Ga`, listInput$`hequetiae vs labillardierei`), listInput$`revolutissima vs impolita`) %>%
+ultramafic_DEGs <- ultramaf_nonultramaf_intersect %>%
   str_replace(".t1", "")
 
 # plot copy number of each ortogrop per species
@@ -426,17 +425,18 @@ revolutissima_ultramafic_orthogroup_genes<- orthogroups_long %>% filter(Orthogro
 
 
 
-# get DEG homologs DE between impolita and revolutissima
-imp_rev_DEGs<-listInput$`revolutissima vs impolita` %>% str_replace(".t1", "") %>% str_replace(".t2", "") %>% str_replace(".t3", "") %>% str_replace(".t4", "") %>% str_replace(".t5", "")
-imp_rev_OGs<-orthogroups_long %>% filter(gene %in% imp_rev_DEGs & species == "D. vieillardii") %>% pull(Orthogroup)
+# get DEG homologs in impolita and revolutissima
+imp_rev_OGs<-orthogroups_long %>% filter(gene %in% ultramafic_DEGs & species == "D. vieillardii") %>% pull(Orthogroup)
 impolita_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. impolita" & gene != "NA") %>% pull(gene)
 revolutissima_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. revolutissima" & gene != "NA") %>% pull(gene)
 
 
-  
+
+
+
 # read in the gene-TE overlaps
-impolita.gene_te<-read_delim("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_te_overlap/impolita.gene_te_dists", col_names = c("annotation", "gene", "gene_dist", "te_length", "insertion_date"))
-revolutissima.gene_te<-read_delim("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_te_overlap/revolutissima.gene_te_dists", col_names = c("annotation", "gene", "gene_dist", "te_length", "insertion_date"))
+impolita.gene_te<-read.table("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_te_overlap/impolita.gene_te_dists") %>% set_colnames(c("annotation", "gene", "gene_dist", "te_length", "insertion_date"))
+revolutissima.gene_te<-read.table("/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_te_overlap/revolutissima.gene_te_dists") 
 
 # get gene-te distances where gene is in DE list, sampling the same number of gene-te distances randomly for comparison
 impolita_de_te <- impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% mutate(comp="D. impolita DE", gene_set="Differentially Expressed", species="D. impolita")
@@ -449,15 +449,15 @@ a<-rbind(impolita_de_te, impolita_rand_te, revolutissima_de_te, revolutissima_ra
   filter(abs(gene_dist) < 100000) %>%
   mutate(gene_dist = abs(gene_dist)) %>%
   ggplot(aes(x=gene_dist, fill=comp)) +
-  geom_histogram(bins=100) +
+  geom_density(aes(y = after_stat(count)), alpha = 0.25) +
   scale_fill_manual(values=c("navy", "cornflowerblue", "maroon", "orchid1")) +
   facet_wrap(~comp) +
   theme(axis.text = element_text(size=13), 
         axis.title = element_text(size=25),
-        legend.text = element_text(size=14),
+        legend.text = element_text(size=12),
         legend.title = element_blank(),
         panel.background = element_rect(fill = 'white', colour = 'grey72'),
-        legend.position=c(.19, 0.92),
+        legend.position=c(.31, 0.92),
         legend.background = element_rect(fill='transparent'),
         panel.spacing = unit(1, "lines"),
         plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"),
@@ -470,9 +470,9 @@ a<-rbind(impolita_de_te, impolita_rand_te, revolutissima_de_te, revolutissima_ra
 
 
 # plot a basic line chart of the first 1000 genes and their TE dists in DE and random 
-plot(head(impolita_de_te, n=200)$gene_dist, head(impolita_rand_te, n=200)$gene_dist)
-abline(v=1000, col="blue")
-abline(h=1000, col="blue")
+#plot(head(impolita_de_te, n=200)$gene_dist, head(impolita_rand_te, n=200)$gene_dist)
+#abline(v=1000, col="blue")
+#abline(h=1000, col="blue")
 
 
 
@@ -508,7 +508,59 @@ dev.off()
 
 
 
+
+
+
+
+
+
+
+
+orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. impolita" & gene != "NA")
+
+
+
+impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% 
+  set_colnames(c("annotation", "gene", "gene_dist", "te_length", "TE")) %>% 
+  left_join(impolita_te_annotation, by="TE", relationship = "many-to-many") %>% 
+  left_join(orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. impolita" & gene != "NA"), by="gene")
+
+
+
+
+
+revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>%
+  set_colnames(c("annotation", "gene", "gene_dist", "te_length", "TE")) %>% 
+  left_join(revolutissima_te_annotation, by="TE", relationship = "many-to-many") %>% 
+  left_join(orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. revolutissima" & gene != "NA"), by="gene") %>%
+  filter(gene == "g11314")
+
+
+
+te_annotation
+
+
 # next do a fishers test for this to put a p-value on it
+
+ultramafic_DEGs_High<-ultramafic_DEGs[ultramafic_DEGs %in% c("g10152", "g1861", "g22083", "g594", "g8963")]
+
+# get DEG homologs in impolita and revolutissima
+imp_rev_OGs_High<-orthogroups_long %>% filter(gene %in% ultramafic_DEGs_High & species == "D. vieillardii") %>% pull(Orthogroup)
+impolita_DE_orthogroup_genes_High<-impolita_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. impolita" & gene != "NA") %>% pull(gene)
+revolutissima_DE_orthogroup_genes_High<-revolutissima_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. revolutissima" & gene != "NA") %>% pull(gene)
+
+vie_g1861 impolita_g4621  rev_g11314
+vie_8963  impolita_absent rev_g4181
+vie_10152 impolita_22665  rev_482
+vie_594   impolita_3611   rev_14832
+
+
+
+impolita_DE_orthogroup_genes_High[impolita_DE_orthogroup_genes_High %in% c("g4621", "g22665", "g3611")]
+revolutissima_DE_orthogroup_genes_High[revolutissima_DE_orthogroup_genes_High %in% c("g11314", "g4181", "g482", "g14832")]
+
+
+
 
 
 
