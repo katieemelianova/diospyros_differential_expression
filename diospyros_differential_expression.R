@@ -350,7 +350,6 @@ rev_imp_ultramafic_nonultramafic_counts_large_effect <- fpm(rev_imp$dds) %>% dat
 rev_imp_ultramafic_nonultramafic_counts <- fpm(rev_imp$dds) %>% data.frame() %>% rownames_to_column() %>% filter(rowname %in% ultramafic_nonultramafic_DEGs)
 
 
-
 #############################################################################################################################
 #                       get genes DE between all ultramafic vs nonultramafic species                                        #
 #     Then need to find their homologs in each genome rev and imp using orthofinder output                                  #
@@ -359,40 +358,41 @@ rev_imp_ultramafic_nonultramafic_counts <- fpm(rev_imp$dds) %>% data.frame() %>%
 # get orthogroup info
 orthogroups_long<-get_long_orthogroups()
 
-# get genes DE between all ultramafic vs non-ultramafic pairs
-ultramafic_DEGs <- ultramaf_nonultramaf_intersect %>%
-  str_replace(".t1", "")
-
-
-
-# plot copy number of each ortogrop per species
-ultramafic_OGs<-orthogroups_long %>% filter(gene %in% ultramafic_DEGs & species == "D. vieillardii") %>% pull(Orthogroup)
-ultramafic_OG_copy_number<-orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs) %>% 
-  group_by(Orthogroup, species) %>%
-  summarise(gene_count = length(gene)) %>% 
-  data.frame()
-ultramafic_OG_copy_number$species <-factor(ultramafic_OG_copy_number$species, levels=c("D. sandwicensis", "D. vieillardii", "D. pancheri", "D. yahouensis", "D. impolita", "D. revolutissima"))
-ggplot(ultramafic_OG_copy_number, aes(x=species, y=gene_count, group=Orthogroup, colour=Orthogroup)) +
-  geom_line(size=1) +
-  geom_point(size=6) +
-  scale_colour_manual(values=c("red", "orange", "pink", "green", "blue", "grey", "black", "purple", "yellow", "brown", "dodgerblue2", "gold", "aquamarine"))
+# get DEG orthogroups and the vieillardii gene that was DE in each
+ultramafic_OGs<-orthogroups_long %>% filter(gene %in% (ultramafic_nonultramafic_DEGs %>% str_replace(".t1", "")) & species == "D. vieillardii")
+ultramafic_OGs_large_effect<-orthogroups_long %>% filter(gene %in% (ultramafic_nonultramafic_DEGs_large_effect %>% str_replace(".t1", "")) & species == "D. vieillardii")
 
 
 
 
 
-# get genes DE in all ulramafic-nonultramafic species apirs and their orthogrouops
-impolita_ultramafic_orthogroup_genes<- orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs & species == "D. impolita" & gene != "NA") %>% pull(gene)
-revolutissima_ultramafic_orthogroup_genes<- orthogroups_long %>% filter(Orthogroup %in% ultramafic_OGs & species == "D. revolutissima" & gene != "NA") %>% pull(gene)
+ultramafic_OG_trees <- list.files(path="/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_family_analysis/diospyros_gene_family_analysis/fastas/OrthoFinder/Results_Feb17/Gene_Trees", 
+           full.names = TRUE, 
+           pattern=paste(ultramafic_OGs$Orthogroup, collapse="|")) %>%
+  lapply(ape::read.tree) %>%
+  set_names(ultramafic_OGs$Orthogroup)
+
+
+ultramafic_OG_large_effect_trees <- list.files(path="/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_family_analysis/diospyros_gene_family_analysis/fastas/OrthoFinder/Results_Feb17/Gene_Trees", 
+                                  full.names = TRUE, 
+                                  pattern=paste(ultramafic_OGs$Orthogroup, collapse="|")) %>%
+  lapply(ape::read.tree) %>%
+  set_names(ultramafic_OGs$Orthogroup)
 
 
 
 
 
-# get DEG homologs in impolita and revolutissima
-imp_rev_OGs<-orthogroups_long %>% filter(gene %in% ultramafic_DEGs & species == "D. vieillardii") %>% pull(Orthogroup)
-impolita_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. impolita" & gene != "NA") %>% pull(gene)
-revolutissima_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. revolutissima" & gene != "NA") %>% pull(gene)
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -436,6 +436,7 @@ vie_g1861 impolita_g4621  rev_g11314
 vie_8963  impolita_absent rev_g4181
 vie_10152 impolita_22665  rev_482
 vie_594   impolita_3611   rev_14832
+
 
 
 
