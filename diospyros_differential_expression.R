@@ -380,33 +380,111 @@ ultramafic_OG_large_effect_trees <- list.files(path="/Users/katieemelianova/Desk
   set_names(ultramafic_OGs_large_effect$Orthogroup)
 
 
-# make this into a function
-tip_to_colour <- ultramafic_OG_large_effect_trees$OG0000336$tip.label %>% str_subset(ultramafic_OGs_large_effect %>% filter(Orthogroup == "OG0000336") %>% pull(gene))
+
+
+
+
+
+draw_highlighted_genetree<-function(orthogroup){
+  # get the vieillardii gene which is the DEG
+  focal_tip <- ultramafic_OG_large_effect_trees[[orthogroup]]$tip.label %>% str_subset(ultramafic_OGs_large_effect %>% filter(Orthogroup == orthogroup) %>% pull(gene))
+  
+  
+  # get the parent node of the vieillardii DEG in tree
+  focal_parent_node <- ultramafic_OG_large_effect_trees[[orthogroup]] %>% as_tibble() %>% filter(label == focal_tip) %>% pull(parent)
+  
+
+  # get descendant nodes and tip names of DE viellardii gene
+  descendant<-getDescendants(ultramafic_OG_large_effect_trees[[orthogroup]], focal_parent_node)
+
+  
+  # use these to get the labels (i.e. tip labels) which have revolutissima or impolita in the name (i.e. homologs of the viellardii DEGs)
+  focal_homolog_tips_impolita <- impolita_revolutissima_descendants<-ultramafic_OG_large_effect_trees$OG0000336 %>% 
+    as_tibble() %>% 
+    filter(node %in% descendant) %>% 
+    filter(grepl(c("impolita"), label)) %>%
+    pull(label)
+  
+  focal_homolog_tips_revolutissima<- impolita_revolutissima_descendants<-ultramafic_OG_large_effect_trees[[orthogroup]] %>% 
+    as_tibble() %>% 
+    filter(node %in% descendant) %>% 
+    filter(grepl(c("revolutissima"), label)) %>%
+    pull(label)
+  
+  # plot gene tree with highlighted tips
+  output_tree <- ggtree(ultramafic_OG_large_effect_trees$OG0000336) + 
+    xlim(0, 1) + 
+    geom_tiplab(aes(subset = isTip & !(label %in% c(focal_tip, focal_homolog_tips)), size=5)) + 
+    geom_tiplab(aes(subset = label == focal_tip), size=5, colour = 'red', fontface="bold") +
+    geom_tiplab(aes(subset = (label %in% focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
+    geom_tiplab(aes(subset = (label %in% focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold") + 
+    theme(legend.position="none")
+  
+  return(output_tree)
+
+}
+
+test<- draw_highlighted_genetree("OG0000336")
+
+
+focal_tip <- ultramafic_OG_large_effect_trees$OG0000336$tip.label %>% str_subset(ultramafic_OGs_large_effect %>% filter(Orthogroup == "OG0000336") %>% pull(gene))
+
+
+orthogroup <- "OG0000336"
+
+
+
+
+# make this below into a function
+
+# get the vieillardii gene which is the DEG
+focal_tip <- ultramafic_OG_large_effect_trees$OG0000336$tip.label %>% str_subset(ultramafic_OGs_large_effect %>% filter(Orthogroup == "OG0000336") %>% pull(gene))
+
+
+# get the parent node of the vieillardii DEG in tree
+focal_parent_node <- ultramafic_OG_large_effect_trees$OG0000336 %>% as_tibble() %>% filter(label == focal_tip) %>% pull(parent)
+
+# get descendant nodes and tip names of DE viellardii gene
+descendant<-getDescendants(ultramafic_OG_large_effect_trees$OG0000336, focal_parent_node)
+
+# use these to get the labels (i.e. tip labels) which have revolutissima or impolita in the name (i.e. homologs of the viellardii DEGs)
+focal_homolog_tips_impolita <- impolita_revolutissima_descendants<-ultramafic_OG_large_effect_trees$OG0000336 %>% 
+  as_tibble() %>% 
+  filter(node %in% descendant) %>% 
+  filter(grepl(c("impolita"), label)) %>%
+  pull(label)
+
+focal_homolog_tips_revolutissima<- impolita_revolutissima_descendants<-ultramafic_OG_large_effect_trees$OG0000336 %>% 
+  as_tibble() %>% 
+  filter(node %in% descendant) %>% 
+  filter(grepl(c("revolutissima"), label)) %>%
+  pull(label)
 
 ggtree(ultramafic_OG_large_effect_trees$OG0000336) + 
   xlim(0, 1) + 
-  geom_tiplab(aes(subset = isTip & label != tip_to_colour), size=5) + 
-  geom_tiplab(aes(subset = label == tip_to_colour), size=5, colour = 'red', fontface="bold") #+ 
-  #geom_text(aes(label=node), hjust=-.3)
-  #geom_point2(aes(subset=(node %in% descendant)), shape=23, size=5, fill='red')
-  #geom_point2(aes(subset=(node %in% descendant)), shape=23, size=5, fill='red')
-
-
-
-ggtreeultramafic_OG_large_effect_trees$OG0000336 %>% as_tibble() %>% filter(label == tip_to_colour) %>% pull(parent)
-
-
-# get descendant node and tip names of DE viellardii gene
-descendant<-getDescendants(ultramafic_OG_large_effect_trees$OG0000336, "46")
-
-# use these to get the labels (i.e. tip labels)
-ultramafic_OG_large_effect_trees$OG0000336 %>% as_tibble() %>% filter(node %in% descendant) %>% filter(grepl(c("impolita|revolutissima"), label))
+  geom_tiplab(aes(subset = isTip & !(label %in% c(focal_tip, focal_homolog_tips)), size=5)) + 
+  geom_tiplab(aes(subset = label == focal_tip), size=5, colour = 'red', fontface="bold") +
+  geom_tiplab(aes(subset = (label %in% focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
+  geom_tiplab(aes(subset = (label %in% focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold")
 
 
 
 
 
 
+
+
+
+
+#geom_text(aes(label=node), hjust=-.3)
+#geom_point2(aes(subset=(node %in% descendant)), shape=23, size=5, fill='red')
+#geom_point2(aes(subset=(node %in% descendant)), shape=23, size=5, fill='red')
+
+
+
+
++ 
+  geom_tiplab(aes(subset = label %in% focal_homolog_tips), size=5, colour = 'blue', fontface="bold")
 
 
 
