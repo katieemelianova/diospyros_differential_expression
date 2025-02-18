@@ -365,19 +365,42 @@ ultramafic_OGs_large_effect<-orthogroups_long %>% filter(gene %in% (ultramafic_n
 
 
 
-
+# read in orthogroup gene trees for DEGs and large effect DEGs
 ultramafic_OG_trees <- list.files(path="/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_family_analysis/diospyros_gene_family_analysis/fastas/OrthoFinder/Results_Feb17/Gene_Trees", 
            full.names = TRUE, 
            pattern=paste(ultramafic_OGs$Orthogroup, collapse="|")) %>%
-  lapply(ape::read.tree) %>%
+  lapply(ggtree::read.tree) %>%
   set_names(ultramafic_OGs$Orthogroup)
 
 
 ultramafic_OG_large_effect_trees <- list.files(path="/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_family_analysis/diospyros_gene_family_analysis/fastas/OrthoFinder/Results_Feb17/Gene_Trees", 
                                   full.names = TRUE, 
-                                  pattern=paste(ultramafic_OGs$Orthogroup, collapse="|")) %>%
-  lapply(ape::read.tree) %>%
-  set_names(ultramafic_OGs$Orthogroup)
+                                  pattern=paste(ultramafic_OGs_large_effect$Orthogroup, collapse="|")) %>%
+  lapply(ggtree::read.tree) %>%
+  set_names(ultramafic_OGs_large_effect$Orthogroup)
+
+
+# make this into a function
+tip_to_colour <- ultramafic_OG_large_effect_trees$OG0000336$tip.label %>% str_subset(ultramafic_OGs_large_effect %>% filter(Orthogroup == "OG0000336") %>% pull(gene))
+
+ggtree(ultramafic_OG_large_effect_trees$OG0000336) + 
+  xlim(0, 1) + 
+  geom_tiplab(aes(subset = isTip & label != tip_to_colour), size=5) + 
+  geom_tiplab(aes(subset = label == tip_to_colour), size=5, colour = 'red', fontface="bold") #+ 
+  #geom_text(aes(label=node), hjust=-.3)
+  #geom_point2(aes(subset=(node %in% descendant)), shape=23, size=5, fill='red')
+  #geom_point2(aes(subset=(node %in% descendant)), shape=23, size=5, fill='red')
+
+
+
+ggtreeultramafic_OG_large_effect_trees$OG0000336 %>% as_tibble() %>% filter(label == tip_to_colour) %>% pull(parent)
+
+
+# get descendant node and tip names of DE viellardii gene
+descendant<-getDescendants(ultramafic_OG_large_effect_trees$OG0000336, "46")
+
+# use these to get the labels (i.e. tip labels)
+ultramafic_OG_large_effect_trees$OG0000336 %>% as_tibble() %>% filter(node %in% descendant) %>% filter(grepl(c("impolita|revolutissima"), label))
 
 
 
@@ -390,7 +413,10 @@ ultramafic_OG_large_effect_trees <- list.files(path="/Users/katieemelianova/Desk
 
 
 
+ultramafic_OG_large_effect_trees$OG0000336$tip.label <- ultramafic_OG_large_effect_trees$OG0000336$tip.label %>% str_replace("_braker_aa", "")
 
+
+plot(ultramafic_OG_large_effect_trees$OG0000336)
 
 
 
