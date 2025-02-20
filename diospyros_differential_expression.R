@@ -357,45 +357,17 @@ rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", 
       counts(rev_imp_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", "g10156.t1", "g10157.t1"),] %>% t()) %>% 
   pheatmap(scale="row", cluster_rows = FALSE, annotation_row=annotation_species)
 
-
-# draw heatmap
+# draw heatmap feature scaled
 rbind(t(apply(fpm(cal_spn_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t(), 1, function(x) x/sum(x))),
       t(apply(fpm(heq_lab_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t(), 1, function(x) x/sum(x))),
       t(apply(fpm(rev_imp_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t(), 1, function(x) x/sum(x)))) %>% 
-  #log1p() %>%
   pheatmap(scale="row", cluster_rows = FALSE, annotation_row=annotation_species)
 
-
-rbind(fpm(cal_spn_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t(),
-      fpm(heq_lab_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t(),
-      fpm(rev_imp_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t()) %>% 
-  log1p() %>%
-  pheatmap(scale="row", cluster_rows = FALSE, annotation_row=annotation_species)
+a <- apply(fpm(cal_spn_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,], 1, function(x) x/sum(x))
+b <- apply(fpm(heq_lab_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,], 1, function(x) x/sum(x))
+c <- apply(fpm(rev_imp_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,], 1, function(x) x/sum(x))
 
 
-fpm(cal_spn$dds)[ultramafic_nonultramafic_DEGs_large_effect[1],]
-
-
-
-(fpm(cal_spn_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t())[,5]
-
-
-(t(apply(fpm(cal_spn_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t(), 1, function(x) x/mean(x))))[,5]
-
-
-
-
-
-
-
-
-
-
-
-
-apply(fpm(cal_spn_nothresh$dds)[ultramafic_nonultramafic_DEGs,] %>% t(), 1, function(x) x/mean(x))
-apply(fpm(heq_lab_nothresh$dds)[ultramafic_nonultramafic_DEGs,] %>% t(), 1, function(x) x/mean(x))
-apply(fpm(rev_imp_nothresh$dds)[ultramafic_nonultramafic_DEGs,] %>% t(), 1, function(x) x/mean(x))
 
 #############################################################################################################################
 #                       get genes DE between all ultramafic vs nonultramafic species                                        #
@@ -427,6 +399,9 @@ ultramafic_OG_large_effect_trees <- list.files(path="/Users/katieemelianova/Desk
 
 
 
+##########################################################################################################
+#           draw trees of orthogroups containing DEGs, hghlighting monophyletic homologs                 #
+##########################################################################################################
 
 
 draw_highlighted_genetree<-function(orthogroup){
@@ -561,70 +536,11 @@ ggtree(ultramafic_OG_large_effect_trees$OG0000336) +
 
 
 
-#geom_text(aes(label=node), hjust=-.3)
-#geom_point2(aes(subset=(node %in% descendant)), shape=23, size=5, fill='red')
-#geom_point2(aes(subset=(node %in% descendant)), shape=23, size=5, fill='red')
-
-
-
-
-+ 
-  geom_tiplab(aes(subset = label %in% focal_homolog_tips), size=5, colour = 'blue', fontface="bold")
 
 
 
 
 
-
-ultramafic_OG_large_effect_trees$OG0000336$tip.label <- ultramafic_OG_large_effect_trees$OG0000336$tip.label %>% str_replace("_braker_aa", "")
-
-
-plot(ultramafic_OG_large_effect_trees$OG0000336)
-
-
-
-
-
-
-
-
-
-
-
-
-impolita.gene_te %>% filter(gene %in% impolita_DE_orthogroup_genes) %>% 
-  set_colnames(c("annotation", "gene", "gene_dist", "te_length", "TE")) %>% 
-  left_join(impolita_te_annotation, by="TE", relationship = "many-to-many") %>% 
-  left_join(orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. impolita" & gene != "NA"), by="gene")
-
-
-
-
-
-revolutissima.gene_te %>% filter(gene %in% revolutissima_DE_orthogroup_genes) %>%
-  set_colnames(c("annotation", "gene", "gene_dist", "te_length", "TE")) %>% 
-  left_join(revolutissima_te_annotation, by="TE", relationship = "many-to-many") %>% 
-  left_join(orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. revolutissima" & gene != "NA"), by="gene") %>%
-  filter(gene == "g11314")
-
-
-
-te_annotation
-
-
-# next do a fishers test for this to put a p-value on it
-
-ultramafic_DEGs_High<-ultramafic_DEGs[ultramafic_DEGs %in% c("g10152", "g1861", "g22083", "g594", "g8963")]
-
-# get DEG homologs in impolita and revolutissima
-imp_rev_OGs_High<-orthogroups_long %>% filter(gene %in% ultramafic_DEGs_High & species == "D. vieillardii") %>% pull(Orthogroup)
-impolita_DE_orthogroup_genes_High<-impolita_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. impolita" & gene != "NA") %>% pull(gene)
-revolutissima_DE_orthogroup_genes_High<-revolutissima_DE_orthogroup_genes<-orthogroups_long %>% filter(Orthogroup %in% imp_rev_OGs & species == "D. revolutissima" & gene != "NA") %>% pull(gene)
-
-vie_g1861 impolita_g4621  rev_g11314
-vie_8963  impolita_absent rev_g4181
-vie_10152 impolita_22665  rev_482
-vie_594   impolita_3611   rev_14832
 
 
 
@@ -640,7 +556,17 @@ revolutissima_DE_orthogroup_genes_High[revolutissima_DE_orthogroup_genes_High %i
 
 
 
+df<-data.frame(start=c(594198,596540,598457,600085,983488,984345),
+               stop=c(596450,598423,600070,601182,984336,986495),
+               species=rep("Ferriphaselus amnicola",6),
+               gene=c("gene1","gene2","gene3","gene4","gene5","gene6"))
 
+
+ggplot(df, aes(xmin = start, xmax = stop, y = species, fill = gene)) +
+  geom_gene_arrow() +
+  facet_wrap(~ species, scales = "free", ncol = 1) +
+  scale_fill_brewer(palette = "Set3") +
+  theme_genes()
 
 
 
