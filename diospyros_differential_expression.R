@@ -182,9 +182,9 @@ pic2<-facet_plot(p2, panel="Relative Soil Nickel Concentration", data=test, geom
         ) + 
   scale_fill_manual(values=c("#68C7AA", "#F1A1FD", "#AD1640", "#FF007E", "#22660D", "#FE841C"))
 
-pdf("PCA_with_tree.pdf", width = 15, height = 7)
-grid.arrange(pic1, pic2, nrow = 1)
-dev.off()
+#pdf("PCA_with_tree.pdf", width = 15, height = 7)
+#grid.arrange(pic1, pic2, nrow = 1)
+#dev.off()
 
 
 ############################################################################
@@ -278,6 +278,8 @@ imp_av<-fpm(rev_imp$dds) %>% data.frame() %>% dplyr::select(imp_3ba1, imp_3ba2, 
 rev_av<-fpm(rev_imp$dds) %>% data.frame() %>% dplyr::select(rev_24a1, rev_24a1r, rev_24a2, rev_24b1, rev_24b2, rev_25a1, rev_25a2, rev_25a3, rev_25aq3r) %>% rowMeans()
 
 
+
+
 average_expression_plot<-inner_join(inner_join(
   data.frame(cal_av, pic_av) %>% rownames_to_column(), 
   data.frame(heq_av, lab_av) %>% rownames_to_column()), 
@@ -291,6 +293,11 @@ average_expression_plot<-inner_join(inner_join(
          soiltype=case_when(variable %in% c("rev_av", "heq_av", "pic_av") ~ "Ultramafic",
                             variable %in% c("cal_av", "lab_av", "imp_av") ~ "Non-Ultramafic")) %>%
   ggplot(aes(x=rowname, y=(value), fill=soiltype)) + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 0, ymax = 800, fill = 'lightgoldenrod1', alpha = 0.006) +
+  geom_rect(xmin = 4.5, xmax = 5.5, ymin = 0, ymax = 800, fill = 'lightgoldenrod1', alpha = 0.006) +
+  geom_rect(xmin = 6.5, xmax = 7.5, ymin = 0, ymax = 800, fill = 'lightgoldenrod1', alpha = 0.006) +
+  geom_rect(xmin = 8.5, xmax = 9.5, ymin = 0, ymax = 800, fill = 'lightgoldenrod1', alpha = 0.006) +
+  geom_rect(xmin = 11.5, xmax = 12.5, ymin = 0, ymax = 800, fill = 'lightgoldenrod1', alpha = 0.006) +
   geom_point(size= 6, alpha=0.55, aes(shape=soiltype, color=pair_name)) +
   scale_shape_manual(values=c(17, 19)) +
   scale_colour_manual(values=c("darkolivegreen3", "hotpink2", "dodgerblue2")) +
@@ -304,9 +311,27 @@ average_expression_plot<-inner_join(inner_join(
         panel.background = element_rect(fill = 'white', colour = 'grey72'),
         legend.position=c(.75, 0.8))
 
-#pdf("average_expressionDEGs.pdf", width=6, height=6)
-#average_expression_plot 
-#dev.off()
+pdf("average_expressionDEGs.pdf", width=6, height=6)
+average_expression_plot
+dev.off()
+
+
+
+######################################################################################################
+#                  get subsets of DEGs - all DEGs and those of large effect                          #
+######################################################################################################
+
+# get the deseq results and get genes to focus on using baseMean as filter
+
+# DEGs
+ultramafic_nonultramafic_DEGs_large_effect <- results(rev_imp$dds)[ultramaf_nonultramaf_intersect,] %>% data.frame() %>% filter(baseMean > 1000 & log2FoldChange > 2) %>% rownames()
+ultramafic_nonultramafic_DEGs <- results(rev_imp$dds)[ultramaf_nonultramaf_intersect,] %>% data.frame() %>% rownames()
+
+# DEG counts
+rev_imp_ultramafic_nonultramafic_counts_large_effect <- fpm(rev_imp$dds) %>% data.frame() %>% rownames_to_column() %>% filter(rowname %in% ultramafic_nonultramafic_DEGs_large_effect)
+rev_imp_ultramafic_nonultramafic_counts <- fpm(rev_imp$dds) %>% data.frame() %>% rownames_to_column() %>% filter(rowname %in% ultramafic_nonultramafic_DEGs)
+
+
 
 #####################################################################################
 #    get all counts no filter and draw heatmap of different gene copy expression    #
@@ -333,22 +358,44 @@ rbind(counts(cal_spn_nothresh$dds, normalized=TRUE)[c("g10152.t1", "g10154.t1", 
   pheatmap(scale="row", cluster_rows = FALSE, annotation_row=annotation_species)
 
 
+# draw heatmap
+rbind(t(apply(fpm(cal_spn_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t(), 1, function(x) x/sum(x))),
+      t(apply(fpm(heq_lab_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t(), 1, function(x) x/sum(x))),
+      t(apply(fpm(rev_imp_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t(), 1, function(x) x/sum(x)))) %>% 
+  #log1p() %>%
+  pheatmap(scale="row", cluster_rows = FALSE, annotation_row=annotation_species)
 
 
-######################################################################################################
-#                  get subsets of DEGs - all DEGs and those of large effect                          #
-######################################################################################################
+rbind(fpm(cal_spn_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t(),
+      fpm(heq_lab_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t(),
+      fpm(rev_imp_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t()) %>% 
+  log1p() %>%
+  pheatmap(scale="row", cluster_rows = FALSE, annotation_row=annotation_species)
 
-# get the deseq results and get genes to focus on using baseMean as filter
 
-# DEGs
-ultramafic_nonultramafic_DEGs_large_effect <- results(rev_imp$dds)[ultramaf_nonultramaf_intersect,] %>% data.frame() %>% filter(baseMean > 1000 & log2FoldChange > 2) %>% rownames()
-ultramafic_nonultramafic_DEGs <- results(rev_imp$dds)[ultramaf_nonultramaf_intersect,] %>% data.frame() %>% rownames()
+fpm(cal_spn$dds)[ultramafic_nonultramafic_DEGs_large_effect[1],]
 
-# DEG counts
-rev_imp_ultramafic_nonultramafic_counts_large_effect <- fpm(rev_imp$dds) %>% data.frame() %>% rownames_to_column() %>% filter(rowname %in% ultramafic_nonultramafic_DEGs_large_effect)
-rev_imp_ultramafic_nonultramafic_counts <- fpm(rev_imp$dds) %>% data.frame() %>% rownames_to_column() %>% filter(rowname %in% ultramafic_nonultramafic_DEGs)
 
+
+(fpm(cal_spn_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t())[,5]
+
+
+(t(apply(fpm(cal_spn_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,] %>% t(), 1, function(x) x/mean(x))))[,5]
+
+
+
+
+
+
+
+
+
+
+
+
+apply(fpm(cal_spn_nothresh$dds)[ultramafic_nonultramafic_DEGs,] %>% t(), 1, function(x) x/mean(x))
+apply(fpm(heq_lab_nothresh$dds)[ultramafic_nonultramafic_DEGs,] %>% t(), 1, function(x) x/mean(x))
+apply(fpm(rev_imp_nothresh$dds)[ultramafic_nonultramafic_DEGs,] %>% t(), 1, function(x) x/mean(x))
 
 #############################################################################################################################
 #                       get genes DE between all ultramafic vs nonultramafic species                                        #
@@ -361,9 +408,6 @@ orthogroups_long<-get_long_orthogroups()
 # get DEG orthogroups and the vieillardii gene that was DE in each
 ultramafic_OGs<-orthogroups_long %>% filter(gene %in% (ultramafic_nonultramafic_DEGs %>% str_replace(".t1", "")) & species == "D. vieillardii")
 ultramafic_OGs_large_effect<-orthogroups_long %>% filter(gene %in% (ultramafic_nonultramafic_DEGs_large_effect %>% str_replace(".t1", "")) & species == "D. vieillardii")
-
-
-
 
 # read in orthogroup gene trees for DEGs and large effect DEGs
 ultramafic_OG_trees <- list.files(path="/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_family_analysis/diospyros_gene_family_analysis/fastas/OrthoFinder/Results_Feb17/Gene_Trees", 
@@ -386,56 +430,95 @@ ultramafic_OG_large_effect_trees <- list.files(path="/Users/katieemelianova/Desk
 
 
 draw_highlighted_genetree<-function(orthogroup){
-  # get the vieillardii gene which is the DEG
-  focal_tip <- ultramafic_OG_large_effect_trees[[orthogroup]]$tip.label %>% str_subset(ultramafic_OGs_large_effect %>% filter(Orthogroup == orthogroup) %>% pull(gene))
   
+  focal_orthogroup <- ultramafic_OG_large_effect_trees[[orthogroup]]
+  
+  # get the vieillardii gene which is the DEG
+  focal_tip <- focal_orthogroup$tip.label %>% str_subset(ultramafic_OGs_large_effect %>% filter(Orthogroup == orthogroup) %>% pull(gene))
   
   # get the parent node of the vieillardii DEG in tree
-  focal_parent_node <- ultramafic_OG_large_effect_trees[[orthogroup]] %>% as_tibble() %>% filter(label == focal_tip) %>% pull(parent)
-  
+  focal_parent_node <- focal_orthogroup %>% as_tibble() %>% filter(label == focal_tip) %>% pull(parent)
 
   # get descendant nodes and tip names of DE viellardii gene
-  descendant<-getDescendants(ultramafic_OG_large_effect_trees[[orthogroup]], focal_parent_node)
-
+  descendant<-getDescendants(focal_orthogroup, focal_parent_node)
   
   # use these to get the labels (i.e. tip labels) which have revolutissima or impolita in the name (i.e. homologs of the viellardii DEGs)
-  focal_homolog_tips_impolita <- impolita_revolutissima_descendants<-ultramafic_OG_large_effect_trees$OG0000336 %>% 
+  focal_homolog_tips_impolita <- focal_orthogroup %>% 
     as_tibble() %>% 
     filter(node %in% descendant) %>% 
     filter(grepl(c("impolita"), label)) %>%
     pull(label)
   
-  focal_homolog_tips_revolutissima<- impolita_revolutissima_descendants<-ultramafic_OG_large_effect_trees[[orthogroup]] %>% 
+  focal_homolog_tips_revolutissima <- focal_orthogroup %>% 
     as_tibble() %>% 
     filter(node %in% descendant) %>% 
     filter(grepl(c("revolutissima"), label)) %>%
     pull(label)
   
   # plot gene tree with highlighted tips
-  output_tree <- ggtree(ultramafic_OG_large_effect_trees$OG0000336) + 
-    xlim(0, 1) + 
-    geom_tiplab(aes(subset = isTip & !(label %in% c(focal_tip, focal_homolog_tips)), size=5)) + 
-    geom_tiplab(aes(subset = label == focal_tip), size=5, colour = 'red', fontface="bold") +
-    geom_tiplab(aes(subset = (label %in% focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
-    geom_tiplab(aes(subset = (label %in% focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold") + 
+  output_tree <- ggtree(focal_orthogroup) + 
+    xlim(0, 1) +
+    #geom_tiplab(aes(subset = isTip & !(label %in% c(focal_tip, focal_homolog_tips_impolita, focal_homolog_tips_revolutissima)), size=5)) +
     theme(legend.position="none")
-  
-  return(output_tree)
+    #geom_tiplab(aes(subset = label == focal_tip), size=5, colour = 'red', fontface="bold")
+    #geom_tiplab(aes(subset = (label %in% focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
+    #geom_tiplab(aes(subset = (label %in% focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold")
 
+  #return(output_tree)
+  return(list(output_tree=output_tree, focal_tip=focal_tip, focal_homolog_tips_impolita=focal_homolog_tips_impolita, focal_homolog_tips_revolutissima=focal_homolog_tips_revolutissima))
 }
 
-test<- draw_highlighted_genetree("OG0000336")
 
 
-focal_tip <- ultramafic_OG_large_effect_trees$OG0000336$tip.label %>% str_subset(ultramafic_OGs_large_effect %>% filter(Orthogroup == "OG0000336") %>% pull(gene))
+OG0000336_tree <- draw_highlighted_genetree("OG0000336")
+OG0000336_tree$output_tree + 
+  geom_tiplab(aes(subset = isTip & !(label %in% c(OG0000336_tree$focal_tip, OG0000336_tree$focal_homolog_tips_impolita, OG0000336_tree$focal_homolog_tips_revolutissima)), size=5))  +
+  geom_tiplab(aes(subset = label == OG0000336_tree$focal_tip), size=5, colour = 'red', fontface="bold")+
+  geom_tiplab(aes(subset = (label %in% OG0000336_tree$focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
+  geom_tiplab(aes(subset = (label %in% OG0000336_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold")
+
+OG0000451_tree <- draw_highlighted_genetree("OG0000451")
+OG0000451_tree$output_tree + 
+  geom_tiplab(aes(subset = isTip & !(label %in% c(OG0000451_tree$focal_tip, OG0000451_tree$focal_homolog_tips_impolita, OG0000451_tree$focal_homolog_tips_revolutissima)), size=5))  +
+  geom_tiplab(aes(subset = label == OG0000451_tree$focal_tip), size=5, colour = 'red', fontface="bold")+
+  geom_tiplab(aes(subset = (label %in% OG0000451_tree$focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
+  geom_tiplab(aes(subset = (label %in% OG0000451_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold")
+
+OG0000500_tree <- draw_highlighted_genetree("OG0000500")
+OG0000500_tree$output_tree + 
+  geom_tiplab(aes(subset = isTip & !(label %in% c(OG0000500_tree$focal_tip, OG0000500_tree$focal_homolog_tips_impolita, OG0000500_tree$focal_homolog_tips_revolutissima)), size=5))  +
+  geom_tiplab(aes(subset = label == OG0000500_tree$focal_tip), size=5, colour = 'red', fontface="bold")+
+  geom_tiplab(aes(subset = (label %in% OG0000500_tree$focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
+  geom_tiplab(aes(subset = (label %in% OG0000500_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold")
+
+OG0006346_tree <- draw_highlighted_genetree("OG0006346")
+OG0006346_tree$output_tree + 
+  geom_tiplab(aes(subset = isTip & !(label %in% c(OG0006346_tree$focal_tip, OG0006346_tree$focal_homolog_tips_impolita, OG0006346_tree$focal_homolog_tips_revolutissima)), size=5))  +
+  geom_tiplab(aes(subset = label == OG0006346_tree$focal_tip), size=5, colour = 'red', fontface="bold")+
+  geom_tiplab(aes(subset = (label %in% OG0006346_tree$focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
+  geom_tiplab(aes(subset = (label %in% OG0006346_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold")
 
 
-orthogroup <- "OG0000336"
 
 
 
 
-# make this below into a function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# I've made this into a runction above but somehow the colours dont work
+# also for OG0006346 the vieillardii genes are monophyletic and no imp/rev descendants, so function doesnt work
 
 # get the vieillardii gene which is the DEG
 focal_tip <- ultramafic_OG_large_effect_trees$OG0000336$tip.label %>% str_subset(ultramafic_OGs_large_effect %>% filter(Orthogroup == "OG0000336") %>% pull(gene))
@@ -460,6 +543,8 @@ focal_homolog_tips_revolutissima<- impolita_revolutissima_descendants<-ultramafi
   filter(grepl(c("revolutissima"), label)) %>%
   pull(label)
 
+
+focal_homolog_tips_impolita <- c()
 ggtree(ultramafic_OG_large_effect_trees$OG0000336) + 
   xlim(0, 1) + 
   geom_tiplab(aes(subset = isTip & !(label %in% c(focal_tip, focal_homolog_tips)), size=5)) + 
