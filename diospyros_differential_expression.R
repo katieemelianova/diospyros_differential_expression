@@ -14,10 +14,11 @@ library(eulerr)
 library(pheatmap)
 library(ggtree)
 library(reshape2)
+library(phytools)
 source("differential_expression_functions.R")
 source("/Users/katieemelianova/Desktop/Diospyros/diospyros_R_functions/diospyros_soil_leaf_species_element_dataset.R")
 source("/Users/katieemelianova/Desktop/Diospyros/diospyros_R_functions/diospyros_orthogroups_long.R")
-
+source("/Users/katieemelianova/Desktop/Diospyros/diospyros_R_functions/diospyros_genome_annotation.R")
 
 
 
@@ -28,6 +29,18 @@ source("/Users/katieemelianova/Desktop/Diospyros/diospyros_R_functions/diospyros
 # for the GO term enrichment tests
 mp<-readMappings("vieillardii_topGO_annotation.txt")
 mp<-readMappings("/Users/katieemelianova/Desktop/Diospyros/vieillardii_functionalAnnotation_transcript.topGO.txt")
+
+##############################################
+#         load in braker annotations         #
+##############################################
+
+
+braker_annotation <- get_braker_annotation()
+
+braker_vieillardii <- braker_annotation$vieillardii_braker
+braker_revolutissima <- braker_annotation$revolutissima_braker
+braker_impolita <- braker_annotation$impolita_braker
+
 
 ##################################################
 #       function for reading in featurecounts    #
@@ -213,6 +226,33 @@ rev_imp<-specify_comparison(all_samples, all_counts, "species %in% c('rev', 'imp
 #rev_imp$results %>% data.frame() %>% arrange(padj) %>% rownames_to_column() %>% write_tsv("revolutissimae_impolita.DEG.tsv")
 
 
+# write sample info to file
+all_samples %>% rownames_to_column() %>% set_colnames(c("sample_id", "species", "mother", "offspring", "pseudoreplicate", "soil_type")) %>% write_tsv("diospyros_common_garden_samples.tsv")
+
+
+#################################################################################
+#       get calciphila-spn genes to overlay with those found by Florian         # 
+#################################################################################
+
+cal_spn_degs <- cal_spn_nothresh$results %>% 
+  data.frame() %>% 
+  filter(abs(log2FoldChange) > 2 & padj < 0.05) %>% 
+  rownames()
+
+braker_vieillardii %>% 
+  filter(annotation %in% cal_spn_degs) %>% 
+  dplyr::select(seqname, start, end, annotation) %>% 
+  data.frame() %>%
+  write.table("cal_spn_degs.bed", quote=FALSE, col.names = FALSE, row.names = FALSE, sep = "\t")
+
+
+# found the following genes to overap between florians set and mine:
+florian_mine_genes <- c("g931.t1", "g1801.t1", "g1852.t1", "g1855.t1", "g1856.t1", "g1861.t1", "g1877.t2", "g1878.t1", "g1893.t1", "g11936.t1", "g11962.t1", "g12622.t1", "g12622.t1", "g14809.t1", "g14824.t1", "g14835.t1", "g16635.t1", "g20731.t1", "g20783.t1", "g20791.t1", "g20832.t1", "g21722.t1", "g23287.t1", "g23932.t2")
+
+florian_mine_genes %>% get_enriched_terms(mp, return_sample_GOData=TRUE)
+
+mp[florian_mine_genes] %>% unlist() %>% unname()
+
 ############################################################
 #     Use pairwise FSTs to decide how to pair up species   #
 ############################################################
@@ -227,10 +267,9 @@ rev_imp<-specify_comparison(all_samples, all_counts, "species %in% c('rev', 'imp
 ############################################################
 
 # create the intersect list
-listInput<-list(`calciphila vs sp. Pic N'Ga` = cal_spn$results %>% data.frame() %>% filter(padj < 0.05 & log2FoldChange > 2) %>% rownames(),
-                `hequetiae vs labillardierei` = heq_lab$results %>% data.frame() %>% filter(padj < 0.05 & log2FoldChange > 2) %>% rownames(),
-                `revolutissima vs impolita` = rev_imp$results %>% data.frame() %>% filter(padj < 0.05 & log2FoldChange > 2) %>% rownames())
-
+listInput<-list(`calciphila vs sp. Pic N'Ga` = cal_spn$results %>% data.frame() %>% filter(padj < 0.05 & abs(log2FoldChange) > 2) %>% rownames(),
+                `hequetiae vs labillardierei` = heq_lab$results %>% data.frame() %>% filter(padj < 0.05 & abs(log2FoldChange) > 2) %>% rownames(),
+                `revolutissima vs impolita` = rev_imp$results %>% data.frame() %>% filter(padj < 0.05 & abs(log2FoldChange) > 2) %>% rownames())
 
 # plot upset plot
 upset(fromList(listInput), order.by = "freq", nsets = 5)
@@ -311,9 +350,9 @@ average_expression_plot<-inner_join(inner_join(
         panel.background = element_rect(fill = 'white', colour = 'grey72'),
         legend.position=c(.75, 0.8))
 
-pdf("average_expressionDEGs.pdf", width=6, height=6)
-average_expression_plot
-dev.off()
+#pdf("average_expressionDEGs.pdf", width=6, height=6)
+#average_expression_plot
+#dev.off()
 
 
 
@@ -444,95 +483,76 @@ draw_highlighted_genetree<-function(orthogroup){
 }
 
 
-
+pdf("OG0000336_tree.pdf", height=10, width=7)
 OG0000336_tree <- draw_highlighted_genetree("OG0000336")
 OG0000336_tree$output_tree + 
   geom_tiplab(aes(subset = isTip & !(label %in% c(OG0000336_tree$focal_tip, OG0000336_tree$focal_homolog_tips_impolita, OG0000336_tree$focal_homolog_tips_revolutissima)), size=5))  +
-  geom_tiplab(aes(subset = label == OG0000336_tree$focal_tip), size=5, colour = 'red', fontface="bold")+
-  geom_tiplab(aes(subset = (label %in% OG0000336_tree$focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
-  geom_tiplab(aes(subset = (label %in% OG0000336_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold")
+  geom_tiplab(aes(subset = label == OG0000336_tree$focal_tip), size=5, colour = 'firebrick2', fontface="bold")+
+  geom_tiplab(aes(subset = (label %in% OG0000336_tree$focal_homolog_tips_impolita)), size=5, colour = 'dodgerblue2', fontface="bold") +
+  geom_tiplab(aes(subset = (label %in% OG0000336_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'forestgreen', fontface="bold")
+dev.off()
+
 
 OG0000451_tree <- draw_highlighted_genetree("OG0000451")
 OG0000451_tree$output_tree + 
   geom_tiplab(aes(subset = isTip & !(label %in% c(OG0000451_tree$focal_tip, OG0000451_tree$focal_homolog_tips_impolita, OG0000451_tree$focal_homolog_tips_revolutissima)), size=5))  +
-  geom_tiplab(aes(subset = label == OG0000451_tree$focal_tip), size=5, colour = 'red', fontface="bold")+
-  geom_tiplab(aes(subset = (label %in% OG0000451_tree$focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
-  geom_tiplab(aes(subset = (label %in% OG0000451_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold")
+  geom_tiplab(aes(subset = label == OG0000451_tree$focal_tip), size=5, colour = 'firebrick2', fontface="bold")+
+  geom_tiplab(aes(subset = (label %in% OG0000451_tree$focal_homolog_tips_impolita)), size=5, colour = 'dodgerblue2', fontface="bold") +
+  geom_tiplab(aes(subset = (label %in% OG0000451_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'forestgreen', fontface="bold")
 
+
+pdf("OG0000500_tree.pdf", height=10, width=7)
 OG0000500_tree <- draw_highlighted_genetree("OG0000500")
 OG0000500_tree$output_tree + 
   geom_tiplab(aes(subset = isTip & !(label %in% c(OG0000500_tree$focal_tip, OG0000500_tree$focal_homolog_tips_impolita, OG0000500_tree$focal_homolog_tips_revolutissima)), size=5))  +
-  geom_tiplab(aes(subset = label == OG0000500_tree$focal_tip), size=5, colour = 'red', fontface="bold")+
-  geom_tiplab(aes(subset = (label %in% OG0000500_tree$focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
-  geom_tiplab(aes(subset = (label %in% OG0000500_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold")
+  geom_tiplab(aes(subset = label == OG0000500_tree$focal_tip), size=5, colour = 'firebrick2', fontface="bold")+
+  geom_tiplab(aes(subset = (label %in% OG0000500_tree$focal_homolog_tips_impolita)), size=5, colour = 'dodgerblue2', fontface="bold") +
+  geom_tiplab(aes(subset = (label %in% OG0000500_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'forestgreen', fontface="bold")
+dev.off()
 
+
+
+pdf("OG0006346_tree.pdf", height=10, width=7)
+# add in the sequence names of impolita dn revolutissima manually as they are not a descendant of the viellardii gene
 OG0006346_tree <- draw_highlighted_genetree("OG0006346")
+OG0006346_tree$focal_homolog_tips_revolutissima <- c("revolutissima_braker_aa_g14832.t1")
+OG0006346_tree$focal_homolog_tips_impolita <- c("impolita_braker_aa_g3611.t1")
 OG0006346_tree$output_tree + 
   geom_tiplab(aes(subset = isTip & !(label %in% c(OG0006346_tree$focal_tip, OG0006346_tree$focal_homolog_tips_impolita, OG0006346_tree$focal_homolog_tips_revolutissima)), size=5))  +
-  geom_tiplab(aes(subset = label == OG0006346_tree$focal_tip), size=5, colour = 'red', fontface="bold")+
-  geom_tiplab(aes(subset = (label %in% OG0006346_tree$focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
-  geom_tiplab(aes(subset = (label %in% OG0006346_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold")
+  geom_tiplab(aes(subset = label == OG0006346_tree$focal_tip), size=5, colour = 'firebrick2', fontface="bold")+
+  geom_tiplab(aes(subset = (label %in% OG0006346_tree$focal_homolog_tips_impolita)), size=5, colour = 'dodgerblue2', fontface="bold") +
+  geom_tiplab(aes(subset = (label %in% OG0006346_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'forestgreen', fontface="bold")
+
+
+
+braker_annotation <- get_braker_annotation()
+
+
+
+brakr_vieillardii <- braker_annotation$vieillardii_braker
+brakr_revolutissima <- braker_annotation$revolutissima_braker
+brakr_impolita <- braker_annotation$impolita_braker
+
+
+
+brakr_vieillardii %>% filter(annotation == "g1861")
+brakr_revolutissima %>% filter(annotation == "g11314")
+brakr_impolita %>% filter(annotation == "g4621")
 
 
 
 
+library(gggenes)
+
+ggplot2::ggplot(example_genes, ggplot2::aes(xmin = start, xmax = end,
+                                            y = molecule, fill = gene, label = gene)) +
+  geom_gene_arrow() +
+  geom_gene_label() +
+  ggplot2::facet_wrap(~ molecule, ncol = 1, scales = "free") +
+  theme_genes()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# I've made this into a runction above but somehow the colours dont work
-# also for OG0006346 the vieillardii genes are monophyletic and no imp/rev descendants, so function doesnt work
-
-# get the vieillardii gene which is the DEG
-focal_tip <- ultramafic_OG_large_effect_trees$OG0000336$tip.label %>% str_subset(ultramafic_OGs_large_effect %>% filter(Orthogroup == "OG0000336") %>% pull(gene))
-
-
-# get the parent node of the vieillardii DEG in tree
-focal_parent_node <- ultramafic_OG_large_effect_trees$OG0000336 %>% as_tibble() %>% filter(label == focal_tip) %>% pull(parent)
-
-# get descendant nodes and tip names of DE viellardii gene
-descendant<-getDescendants(ultramafic_OG_large_effect_trees$OG0000336, focal_parent_node)
-
-# use these to get the labels (i.e. tip labels) which have revolutissima or impolita in the name (i.e. homologs of the viellardii DEGs)
-focal_homolog_tips_impolita <- impolita_revolutissima_descendants<-ultramafic_OG_large_effect_trees$OG0000336 %>% 
-  as_tibble() %>% 
-  filter(node %in% descendant) %>% 
-  filter(grepl(c("impolita"), label)) %>%
-  pull(label)
-
-focal_homolog_tips_revolutissima<- impolita_revolutissima_descendants<-ultramafic_OG_large_effect_trees$OG0000336 %>% 
-  as_tibble() %>% 
-  filter(node %in% descendant) %>% 
-  filter(grepl(c("revolutissima"), label)) %>%
-  pull(label)
-
-
-focal_homolog_tips_impolita <- c()
-ggtree(ultramafic_OG_large_effect_trees$OG0000336) + 
-  xlim(0, 1) + 
-  geom_tiplab(aes(subset = isTip & !(label %in% c(focal_tip, focal_homolog_tips)), size=5)) + 
-  geom_tiplab(aes(subset = label == focal_tip), size=5, colour = 'red', fontface="bold") +
-  geom_tiplab(aes(subset = (label %in% focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
-  geom_tiplab(aes(subset = (label %in% focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold")
-
-
-
-
-
-
-
+example_genes %>% filter(gene == "genA")
 
 
 
