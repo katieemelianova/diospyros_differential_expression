@@ -22,13 +22,14 @@ source("/Users/katieemelianova/Desktop/Diospyros/diospyros_R_functions/diospyros
 
 
 
-############################################
-#        load in the GO ID mappings        #
-############################################
+##############################################################
+#        load in the GO ID mappings and GO annotations       #
+##############################################################
 
 # for the GO term enrichment tests
-mp<-readMappings("vieillardii_topGO_annotation.txt")
 mp<-readMappings("/Users/katieemelianova/Desktop/Diospyros/vieillardii_functionalAnnotation_transcript.topGO.txt")
+mp_go <- read_delim("/Users/katieemelianova/Desktop/Diospyros/vieillardii_functionalAnnotation_transcript.txt")
+
 
 ##############################################
 #         load in braker annotations         #
@@ -36,7 +37,6 @@ mp<-readMappings("/Users/katieemelianova/Desktop/Diospyros/vieillardii_functiona
 
 
 braker_annotation <- get_braker_annotation()
-
 braker_vieillardii <- braker_annotation$vieillardii_braker
 braker_revolutissima <- braker_annotation$revolutissima_braker
 braker_impolita <- braker_annotation$impolita_braker
@@ -230,28 +230,6 @@ rev_imp<-specify_comparison(all_samples, all_counts, "species %in% c('rev', 'imp
 all_samples %>% rownames_to_column() %>% set_colnames(c("sample_id", "species", "mother", "offspring", "pseudoreplicate", "soil_type")) %>% write_tsv("diospyros_common_garden_samples.tsv")
 
 
-#################################################################################
-#       get calciphila-spn genes to overlay with those found by Florian         # 
-#################################################################################
-
-cal_spn_degs <- cal_spn_nothresh$results %>% 
-  data.frame() %>% 
-  filter(abs(log2FoldChange) > 2 & padj < 0.05) %>% 
-  rownames()
-
-braker_vieillardii %>% 
-  filter(annotation %in% cal_spn_degs) %>% 
-  dplyr::select(seqname, start, end, annotation) %>% 
-  data.frame() %>%
-  write.table("cal_spn_degs.bed", quote=FALSE, col.names = FALSE, row.names = FALSE, sep = "\t")
-
-
-# found the following genes to overap between florians set and mine:
-florian_mine_genes <- c("g931.t1", "g1801.t1", "g1852.t1", "g1855.t1", "g1856.t1", "g1861.t1", "g1877.t2", "g1878.t1", "g1893.t1", "g11936.t1", "g11962.t1", "g12622.t1", "g12622.t1", "g14809.t1", "g14824.t1", "g14835.t1", "g16635.t1", "g20731.t1", "g20783.t1", "g20791.t1", "g20832.t1", "g21722.t1", "g23287.t1", "g23932.t2")
-
-florian_mine_genes %>% get_enriched_terms(mp, return_sample_GOData=TRUE)
-
-mp[florian_mine_genes] %>% unlist() %>% unname()
 
 ############################################################
 #     Use pairwise FSTs to decide how to pair up species   #
@@ -276,6 +254,14 @@ upset(fromList(listInput), order.by = "freq", nsets = 5)
 
 # get genes DE between each ultramafic-nonultramafic pair
 ultramaf_nonultramaf_intersect <- intersect(intersect(listInput$`calciphila vs sp. Pic N'Ga`, listInput$`hequetiae vs labillardierei`), listInput$`revolutissima vs impolita`)
+
+
+#################################################################################################
+#     get the annotations for the DEGs found to intersect between ultramaf-nonultramaf pairs    #
+#################################################################################################
+
+mp_go %>% filter(SeqName %in% ultramaf_nonultramaf_intersect) %>%
+  data.frame() %>% dplyr::select(SeqName, Description, GO.Names)
 
 
 ############################################################
@@ -351,7 +337,7 @@ average_expression_plot<-inner_join(inner_join(
         legend.position=c(.75, 0.8))
 
 #pdf("average_expressionDEGs.pdf", width=6, height=6)
-#average_expression_plot
+average_expression_plot
 #dev.off()
 
 
@@ -407,6 +393,29 @@ b <- apply(fpm(heq_lab_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,
 c <- apply(fpm(rev_imp_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,], 1, function(x) x/sum(x))
 
 
+#################################################################################
+#       get calciphila-spn genes to overlay with those found by Florian         # 
+#################################################################################
+
+cal_spn_degs <- cal_spn_nothresh$results %>% 
+  data.frame() %>% 
+  filter(abs(log2FoldChange) > 2 & padj < 0.05) %>% 
+  rownames()
+
+braker_vieillardii %>% 
+  filter(annotation %in% cal_spn_degs) %>% 
+  dplyr::select(seqname, start, end, annotation) %>% 
+  data.frame() %>%
+  write.table("cal_spn_degs.bed", quote=FALSE, col.names = FALSE, row.names = FALSE, sep = "\t")
+
+
+# found the following genes to overap between florians set and mine:
+florian_mine_genes <- c("g931.t1", "g1801.t1", "g1852.t1", "g1855.t1", "g1856.t1", "g1861.t1", "g1877.t2", "g1878.t1", "g1893.t1", "g11936.t1", "g11962.t1", "g12622.t1", "g12622.t1", "g14809.t1", "g14824.t1", "g14835.t1", "g16635.t1", "g20731.t1", "g20783.t1", "g20791.t1", "g20832.t1", "g21722.t1", "g23287.t1", "g23932.t2")
+
+florian_mine_genes %>% get_enriched_terms(mp, return_sample_GOData=TRUE)
+
+mp[florian_mine_genes] %>% unlist() %>% unname()
+
 
 #############################################################################################################################
 #                       get genes DE between all ultramafic vs nonultramafic species                                        #
@@ -417,25 +426,18 @@ c <- apply(fpm(rev_imp_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,
 orthogroups_long<-get_long_orthogroups()
 
 # get DEG orthogroups and the vieillardii gene that was DE in each
-ultramafic_OGs<-orthogroups_long %>% filter(gene %in% (ultramafic_nonultramafic_DEGs %>% str_replace(".t1", "")) & species == "D. vieillardii")
-ultramafic_OGs_large_effect<-orthogroups_long %>% filter(gene %in% (ultramafic_nonultramafic_DEGs_large_effect %>% str_replace(".t1", "")) & species == "D. vieillardii")
+ultramafic_OGs<-orthogroups_long %>% filter(gene %in% (ultramaf_nonultramaf_intersect %>% str_replace(".t1", "")) & species == "D. vieillardii")
 
 # read in orthogroup gene trees for DEGs and large effect DEGs
 ultramafic_OG_trees <- list.files(path="/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_family_analysis/diospyros_gene_family_analysis/fastas/OrthoFinder/Results_Feb17/Gene_Trees", 
            full.names = TRUE, 
-           pattern=paste(ultramafic_OGs$Orthogroup, collapse="|")) %>%
+           pattern=paste(ultramafic_OGs$Orthogroup, collapse="|"))
+# somehow not all the orthogroups have a tree file, so can't guarantee that I can purrr::set_names using the OG names used to fish them out
+# instead getting the names of the orthogroups In was ablw to retrieve and using that to set names
+ultramafic_OG_trees_names <- str_split_i(ultramafic_OG_trees, "/", 12) %>% str_split_i("_", 1)
+ultramafic_OG_trees %<>% 
   lapply(ggtree::read.tree) %>%
-  set_names(ultramafic_OGs$Orthogroup)
-
-
-ultramafic_OG_large_effect_trees <- list.files(path="/Users/katieemelianova/Desktop/Diospyros/diospyros_gene_family_analysis/diospyros_gene_family_analysis/fastas/OrthoFinder/Results_Feb17/Gene_Trees", 
-                                  full.names = TRUE, 
-                                  pattern=paste(ultramafic_OGs_large_effect$Orthogroup, collapse="|")) %>%
-  lapply(ggtree::read.tree) %>%
-  set_names(ultramafic_OGs_large_effect$Orthogroup)
-
-
-
+  purrr::set_names(ultramafic_OG_trees_names)
 
 
 ##########################################################################################################
@@ -445,11 +447,10 @@ ultramafic_OG_large_effect_trees <- list.files(path="/Users/katieemelianova/Desk
 
 draw_highlighted_genetree<-function(orthogroup){
   
-  focal_orthogroup <- ultramafic_OG_large_effect_trees[[orthogroup]]
+  focal_orthogroup <- ultramafic_OG_trees[[orthogroup]]
   
   # get the vieillardii gene which is the DEG
-  focal_tip <- focal_orthogroup$tip.label %>% str_subset(ultramafic_OGs_large_effect %>% filter(Orthogroup == orthogroup) %>% pull(gene))
-  
+  focal_tip <<- focal_orthogroup$tip.label %>% str_subset(ultramafic_OGs %>% filter(Orthogroup == orthogroup) %>% pull(gene))
   # get the parent node of the vieillardii DEG in tree
   focal_parent_node <- focal_orthogroup %>% as_tibble() %>% filter(label == focal_tip) %>% pull(parent)
 
@@ -457,13 +458,13 @@ draw_highlighted_genetree<-function(orthogroup){
   descendant<-getDescendants(focal_orthogroup, focal_parent_node)
   
   # use these to get the labels (i.e. tip labels) which have revolutissima or impolita in the name (i.e. homologs of the viellardii DEGs)
-  focal_homolog_tips_impolita <- focal_orthogroup %>% 
+  focal_homolog_tips_impolita <<- focal_orthogroup %>% 
     as_tibble() %>% 
     filter(node %in% descendant) %>% 
     filter(grepl(c("impolita"), label)) %>%
     pull(label)
   
-  focal_homolog_tips_revolutissima <- focal_orthogroup %>% 
+  focal_homolog_tips_revolutissima <<- focal_orthogroup %>% 
     as_tibble() %>% 
     filter(node %in% descendant) %>% 
     filter(grepl(c("revolutissima"), label)) %>%
@@ -472,43 +473,35 @@ draw_highlighted_genetree<-function(orthogroup){
   # plot gene tree with highlighted tips
   output_tree <- ggtree(focal_orthogroup) + 
     xlim(0, 1) +
-    #geom_tiplab(aes(subset = isTip & !(label %in% c(focal_tip, focal_homolog_tips_impolita, focal_homolog_tips_revolutissima)), size=5)) +
-    theme(legend.position="none")
-    #geom_tiplab(aes(subset = label == focal_tip), size=5, colour = 'red', fontface="bold")
-    #geom_tiplab(aes(subset = (label %in% focal_homolog_tips_impolita)), size=5, colour = 'blue', fontface="bold") +
-    #geom_tiplab(aes(subset = (label %in% focal_homolog_tips_revolutissima)), size=5, colour = 'green', fontface="bold")
+    geom_tiplab(aes(subset = isTip & !(label %in% c(focal_tip, focal_homolog_tips_impolita, focal_homolog_tips_revolutissima)), size=5)) +
+    theme(legend.position="none") +
+    geom_tiplab(aes(subset = label == focal_tip), size=5, colour = 'firebrick2', fontface="bold") +
+    geom_tiplab(aes(subset = (label %in% focal_homolog_tips_impolita)), size=5, colour = 'dodgerblue2', fontface="bold") +
+    geom_tiplab(aes(subset = (label %in% focal_homolog_tips_revolutissima)), size=5, colour = 'forestgreen', fontface="bold")
 
-  #return(output_tree)
   return(list(output_tree=output_tree, focal_tip=focal_tip, focal_homolog_tips_impolita=focal_homolog_tips_impolita, focal_homolog_tips_revolutissima=focal_homolog_tips_revolutissima))
 }
 
 
-pdf("OG0000336_tree.pdf", height=10, width=7)
-OG0000336_tree <- draw_highlighted_genetree("OG0000336")
-OG0000336_tree$output_tree + 
-  geom_tiplab(aes(subset = isTip & !(label %in% c(OG0000336_tree$focal_tip, OG0000336_tree$focal_homolog_tips_impolita, OG0000336_tree$focal_homolog_tips_revolutissima)), size=5))  +
-  geom_tiplab(aes(subset = label == OG0000336_tree$focal_tip), size=5, colour = 'firebrick2', fontface="bold")+
-  geom_tiplab(aes(subset = (label %in% OG0000336_tree$focal_homolog_tips_impolita)), size=5, colour = 'dodgerblue2', fontface="bold") +
-  geom_tiplab(aes(subset = (label %in% OG0000336_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'forestgreen', fontface="bold")
-dev.off()
 
+
+#pdf("OG0000336_tree.pdf", height=10, width=7)
+OG0000336_tree <- draw_highlighted_genetree("OG0000336")
+OG0000336_tree$output_tree
+#dev.off()
 
 OG0000451_tree <- draw_highlighted_genetree("OG0000451")
-OG0000451_tree$output_tree + 
-  geom_tiplab(aes(subset = isTip & !(label %in% c(OG0000451_tree$focal_tip, OG0000451_tree$focal_homolog_tips_impolita, OG0000451_tree$focal_homolog_tips_revolutissima)), size=5))  +
-  geom_tiplab(aes(subset = label == OG0000451_tree$focal_tip), size=5, colour = 'firebrick2', fontface="bold")+
-  geom_tiplab(aes(subset = (label %in% OG0000451_tree$focal_homolog_tips_impolita)), size=5, colour = 'dodgerblue2', fontface="bold") +
-  geom_tiplab(aes(subset = (label %in% OG0000451_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'forestgreen', fontface="bold")
+OG0000451_tree$output_tree
 
-
-pdf("OG0000500_tree.pdf", height=10, width=7)
+#pdf("OG0000500_tree.pdf", height=10, width=7)
 OG0000500_tree <- draw_highlighted_genetree("OG0000500")
-OG0000500_tree$output_tree + 
-  geom_tiplab(aes(subset = isTip & !(label %in% c(OG0000500_tree$focal_tip, OG0000500_tree$focal_homolog_tips_impolita, OG0000500_tree$focal_homolog_tips_revolutissima)), size=5))  +
-  geom_tiplab(aes(subset = label == OG0000500_tree$focal_tip), size=5, colour = 'firebrick2', fontface="bold")+
-  geom_tiplab(aes(subset = (label %in% OG0000500_tree$focal_homolog_tips_impolita)), size=5, colour = 'dodgerblue2', fontface="bold") +
-  geom_tiplab(aes(subset = (label %in% OG0000500_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'forestgreen', fontface="bold")
-dev.off()
+OG0000500_tree$output_tree 
+#dev.off()
+
+
+
+
+
 
 
 
@@ -522,6 +515,15 @@ OG0006346_tree$output_tree +
   geom_tiplab(aes(subset = label == OG0006346_tree$focal_tip), size=5, colour = 'firebrick2', fontface="bold")+
   geom_tiplab(aes(subset = (label %in% OG0006346_tree$focal_homolog_tips_impolita)), size=5, colour = 'dodgerblue2', fontface="bold") +
   geom_tiplab(aes(subset = (label %in% OG0006346_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'forestgreen', fontface="bold")
+
+
+
+
+
+
+
+
+
 
 
 
