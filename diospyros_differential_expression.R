@@ -283,9 +283,9 @@ euler_pairs<-plot(fit2,
 tree_pairs<-p2 + scale_color_manual(values=colours_labels_pairs, limits=species_tree$tip.label)
 
 
-#pdf("euler_with_tree.pdf", width = 8, height = 7)
-#grid.arrange(tree_pairs, euler_pairs, nrow = 1)
-#dev.off()
+pdf("euler_with_tree.pdf", width = 8, height = 7)
+grid.arrange(tree_pairs, euler_pairs, nrow = 1)
+dev.off()
 
 
 ############################################################
@@ -312,21 +312,18 @@ average_expression_plot<-inner_join(inner_join(
   filter(rowname %in% ultramaf_nonultramaf_intersect) %>% 
   melt() %>%
   mutate(rowname=str_replace(rowname, ".t1", "")) %>%
+  mutate(rowname=str_replace(rowname, ".t2", "")) %>%
+  mutate(rowname=str_replace(rowname, ".t3", "")) %>%
   mutate(pair_name=case_when(variable %in% c("cal_av", "pic_av") ~ "Sp. Pic N'Ga - Calciphila",
                              variable %in% c("heq_av", "lab_av") ~ "Hequetiae - Labillardierei",
                              variable %in% c("rev_av", "imp_av") ~ "Revolutissima - Impolita"),
          soiltype=case_when(variable %in% c("rev_av", "heq_av", "pic_av") ~ "Ultramafic",
                             variable %in% c("cal_av", "lab_av", "imp_av") ~ "Non-Ultramafic")) %>%
-  ggplot(aes(x=rowname, y=(value), fill=soiltype)) + 
-  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 0, ymax = 800, fill = 'lightgoldenrod1', alpha = 0.006) +
-  geom_rect(xmin = 4.5, xmax = 5.5, ymin = 0, ymax = 800, fill = 'lightgoldenrod1', alpha = 0.006) +
-  geom_rect(xmin = 6.5, xmax = 7.5, ymin = 0, ymax = 800, fill = 'lightgoldenrod1', alpha = 0.006) +
-  geom_rect(xmin = 8.5, xmax = 9.5, ymin = 0, ymax = 800, fill = 'lightgoldenrod1', alpha = 0.006) +
-  geom_rect(xmin = 11.5, xmax = 12.5, ymin = 0, ymax = 800, fill = 'lightgoldenrod1', alpha = 0.006) +
-  geom_point(size= 6, alpha=0.55, aes(shape=soiltype, color=pair_name)) +
-  scale_shape_manual(values=c(17, 19)) +
-  scale_colour_manual(values=c("darkolivegreen3", "hotpink2", "dodgerblue2")) +
-  ylab("Counts per Million") +
+  ggplot(aes(x=rowname, y=sqrt(value))) + 
+  geom_point(size= 6, alpha=0.55, aes(shape=pair_name, color=soiltype)) +
+  scale_shape_manual(values=c(17, 19, 15)) +
+  scale_colour_manual(values=c("darkolivegreen3", "hotpink2")) +
+  ylab("sqrt(Counts per Million)") +
   xlab("Gene") + 
   theme(axis.text = element_text(size=10), 
         axis.title = element_text(size=15),
@@ -334,13 +331,33 @@ average_expression_plot<-inner_join(inner_join(
         legend.title = element_blank(),
         axis.text.x = element_text(angle = 25, vjust = 0.5, hjust=0.3),
         panel.background = element_rect(fill = 'white', colour = 'grey72'),
-        legend.position=c(.75, 0.8))
+        legend.position=c(.85, 0.8))
 
-#pdf("average_expressionDEGs.pdf", width=6, height=6)
+pdf("average_expressionDEGs.pdf", width=12, height=6)
 average_expression_plot
-#dev.off()
+dev.off()
 
+#######################################################################################################################
+#      How many genes have an average expression greater than 100 counts per million (cpm) in at least one species?    #                      #
+#######################################################################################################################
 
+inner_join(inner_join(
+  data.frame(cal_av, pic_av) %>% rownames_to_column(), 
+  data.frame(heq_av, lab_av) %>% rownames_to_column()), 
+  data.frame(imp_av, rev_av) %>% rownames_to_column()) %>% 
+  filter(rowname %in% ultramaf_nonultramaf_intersect) %>% 
+  melt() %>%
+  mutate(rowname=str_replace(rowname, ".t1", "")) %>%
+  mutate(rowname=str_replace(rowname, ".t2", "")) %>%
+  mutate(rowname=str_replace(rowname, ".t3", "")) %>%
+  mutate(pair_name=case_when(variable %in% c("cal_av", "pic_av") ~ "Sp. Pic N'Ga - Calciphila",
+                             variable %in% c("heq_av", "lab_av") ~ "Hequetiae - Labillardierei",
+                             variable %in% c("rev_av", "imp_av") ~ "Revolutissima - Impolita"),
+         soiltype=case_when(variable %in% c("rev_av", "heq_av", "pic_av") ~ "Ultramafic",
+                            variable %in% c("cal_av", "lab_av", "imp_av") ~ "Non-Ultramafic")) %>%
+  filter(value > 100) %>%
+  pull(rowname) %>%
+  unique()
 
 ######################################################################################################
 #                  get subsets of DEGs - all DEGs and those of large effect                          #
@@ -349,7 +366,7 @@ average_expression_plot
 # get the deseq results and get genes to focus on using baseMean as filter
 
 # DEGs
-ultramafic_nonultramafic_DEGs_large_effect <- results(rev_imp$dds)[ultramaf_nonultramaf_intersect,] %>% data.frame() %>% filter(baseMean > 1000 & log2FoldChange > 2) %>% rownames()
+ultramafic_nonultramafic_DEGs_large_effect <- results(rev_imp$dds)[ultramaf_nonultramaf_intersect,] %>% data.frame() %>% filter(baseMean > 1000 & abs(log2FoldChange) > 2) %>% rownames()
 ultramafic_nonultramafic_DEGs <- results(rev_imp$dds)[ultramaf_nonultramaf_intersect,] %>% data.frame() %>% rownames()
 
 # DEG counts
@@ -423,7 +440,7 @@ mp[florian_mine_genes] %>% unlist() %>% unname()
 #############################################################################################################################
 
 # get orthogroup info
-orthogroups_long<-get_long_orthogroups()
+orthogroups_long<-get_long_orthogroups() %>% drop_na()
 
 # get DEG orthogroups and the vieillardii gene that was DE in each
 ultramafic_OGs<-orthogroups_long %>% filter(gene %in% (ultramaf_nonultramaf_intersect %>% str_replace(".t1", "")) & species == "D. vieillardii")
@@ -445,17 +462,21 @@ ultramafic_OG_trees %<>%
 ##########################################################################################################
 
 
-draw_highlighted_genetree<-function(orthogroup){
-  
+draw_highlighted_genetree<-function(orthogroup, focal_gene){
   focal_orthogroup <- ultramafic_OG_trees[[orthogroup]]
   
   # get the vieillardii gene which is the DEG
-  focal_tip <<- focal_orthogroup$tip.label %>% str_subset(ultramafic_OGs %>% filter(Orthogroup == orthogroup) %>% pull(gene))
+  # removed this line because sometomes 2 DEGs are in a single orthogroup
+  # now instead passing focal tip from the ultramafic_OGs data frame explicitly
+  focal_tip <<- focal_orthogroup$tip.label %>% str_subset(focal_gene)
+
   # get the parent node of the vieillardii DEG in tree
   focal_parent_node <- focal_orthogroup %>% as_tibble() %>% filter(label == focal_tip) %>% pull(parent)
-
+  focal_grandparent_node <- focal_orthogroup %>% as_tibble() %>% filter(node == focal_parent_node) %>% pull(parent)
+  
+  
   # get descendant nodes and tip names of DE viellardii gene
-  descendant<-getDescendants(focal_orthogroup, focal_parent_node)
+  descendant<-getDescendants(focal_orthogroup, focal_grandparent_node)
   
   # use these to get the labels (i.e. tip labels) which have revolutissima or impolita in the name (i.e. homologs of the viellardii DEGs)
   focal_homolog_tips_impolita <<- focal_orthogroup %>% 
@@ -473,34 +494,75 @@ draw_highlighted_genetree<-function(orthogroup){
   # plot gene tree with highlighted tips
   output_tree <- ggtree(focal_orthogroup) + 
     xlim(0, 1) +
-    geom_tiplab(aes(subset = isTip & !(label %in% c(focal_tip, focal_homolog_tips_impolita, focal_homolog_tips_revolutissima)), size=5)) +
+    geom_tiplab(size=3, aes(subset = isTip & !(label %in% c(focal_tip, focal_homolog_tips_impolita, focal_homolog_tips_revolutissima)))) +
     theme(legend.position="none") +
-    geom_tiplab(aes(subset = label == focal_tip), size=5, colour = 'firebrick2', fontface="bold") +
-    geom_tiplab(aes(subset = (label %in% focal_homolog_tips_impolita)), size=5, colour = 'dodgerblue2', fontface="bold") +
-    geom_tiplab(aes(subset = (label %in% focal_homolog_tips_revolutissima)), size=5, colour = 'forestgreen', fontface="bold")
-
+    geom_tiplab(aes(subset = label == focal_tip), size=3, colour = 'firebrick', fontface="bold") +
+    geom_tiplab(aes(subset = (label %in% focal_homolog_tips_impolita)), size=3, colour = 'dodgerblue2', fontface="bold") +
+    geom_tiplab(aes(subset = (label %in% focal_homolog_tips_revolutissima)), size=3, colour = 'forestgreen', fontface="bold")
+  
   return(list(output_tree=output_tree, focal_tip=focal_tip, focal_homolog_tips_impolita=focal_homolog_tips_impolita, focal_homolog_tips_revolutissima=focal_homolog_tips_revolutissima))
 }
 
 
+draw_highlighted_genetree("OG0000363", "g19147")
+draw_highlighted_genetree("OG0000066", "g4374")
 
 
-#pdf("OG0000336_tree.pdf", height=10, width=7)
-OG0000336_tree <- draw_highlighted_genetree("OG0000336")
-OG0000336_tree$output_tree
-#dev.off()
+# this loop gets the orthogroup and the vieillardii gene which is found to be DE between impolita and revolutissima
+# It then records the impolita and vieillardii orthologs associated with the vieillardii gene (anything within the clade stemming from the grandparental node of vieillardii gene), if there are any
+##### here, should I exclude any orthogroups whcih do no have members of both revolutissima and impoita there? I think I should #####
 
-OG0000451_tree <- draw_highlighted_genetree("OG0000451")
-OG0000451_tree$output_tree
+homologs <- data.frame()
+for (i in 1:nrow(ultramafic_OGs)) {
+  current_row <- ultramafic_OGs[i,]
+  tree <- draw_highlighted_genetree(current_row$Orthogroup, current_row$gene)
+  homologs_impolita <- data.frame(homolog=tree$focal_homolog_tips_impolita)
+  homologs_revolutissima <- data.frame(homolog=tree$focal_homolog_tips_revolutissima)
+  
+  if(nrow(homologs_impolita) > 0){
+    homologs_impolita %<>% mutate(orthogroup=current_row$Orthogroup, vieillardii_homolog=current_row$gene, species="impolita")
+    homologs <- rbind(homologs, homologs_impolita)
+  }
+  
+  if(nrow(homologs_revolutissima) > 0){
+    homologs_revolutissima %<>% mutate(orthogroup=current_row$Orthogroup, vieillardii_homolog=current_row$gene, species="revolutissima")
+    homologs <- rbind(homologs, homologs_revolutissima)
+  }
+}
 
-#pdf("OG0000500_tree.pdf", height=10, width=7)
-OG0000500_tree <- draw_highlighted_genetree("OG0000500")
-OG0000500_tree$output_tree 
-#dev.off()
+# this bit converts the format of revolutissima and impolita homologs to be able to filter GRanges objects with them
+homologs$homolog %<>% str_split_i("_", 4)
+
+
+# get impolita and revolutissima homologs of DEGs common to ultramafic-nonultramafic pairs
+imp_hom <- homologs %>% filter(species == "impolita") %>% pull(homolog)
+rev_hom <- homologs %>% filter(species == "revolutissima") %>% pull(homolog)
+
+# get the GRanges in the genomes of impolita and revolutissima of DEG homologs
+imp_hom_granges <- gene_granges$impolita %>% plyranges::filter(annotation %in% imp_hom)
+rev_hom_granges <- gene_granges$revolutissima %>% plyranges::filter(annotation %in% rev_hom)
+
+# using the granges objects, ask which DEG homologs in impolita and revolutissima have a TE within 1000bp
+# get the IDs of the impolita and revolutissima genes tha fit this croteria
+imp_te <- imp_hom_granges[findOverlaps(imp_hom_granges, te_intact_granges$impolita,  maxgap = 1000) %>% data.frame() %>% pull(queryHits)]$annotation
+rev_te <- rev_hom_granges[findOverlaps(rev_hom_granges, te_intact_granges$revolutissima,  maxgap = 1000) %>% data.frame() %>% pull(queryHits)]$annotation
 
 
 
 
+
+
+
+one <- setdiff(homologs %>% filter(species == "impolita" & homolog %in% imp_te) %>% pull(orthogroup) %>% unique(), homologs %>% filter(species == "revolutissima" & homolog %in% rev_te) %>% pull(orthogroup) %>% unique())
+two <- setdiff(homologs %>% filter(species == "revolutissima" & homolog %in% rev_te) %>% pull(orthogroup) %>% unique(), homologs %>% filter(species == "impolita" & homolog %in% imp_te) %>% pull(orthogroup) %>% unique())
+
+
+homologs %>% filter(species == "impolita" & homolog %in% imp_te)
+homologs %>% filter(species == "revolutissima" & homolog %in% rev_te)
+
+
+
+homologs %>% filter(orthogroup %in% one & homolog %in% imp_te)
 
 
 
