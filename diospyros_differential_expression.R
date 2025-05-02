@@ -320,7 +320,17 @@ average_expression_plot<-inner_join(inner_join(
          soiltype=case_when(variable %in% c("rev_av", "heq_av", "pic_av") ~ "Ultramafic",
                             variable %in% c("cal_av", "lab_av", "imp_av") ~ "Non-Ultramafic")) %>%
   ggplot(aes(x=rowname, y=sqrt(value))) + 
+  
+  geom_rect(xmin = 2.5, xmax = 3.5, ymin = 0, ymax = 800, fill = 'lemonchiffon', alpha = 0.1) +
+  geom_rect(xmin = 16.5, xmax = 18.5, ymin = 0, ymax = 800, fill = 'lemonchiffon', alpha = 0.1) +
+  geom_rect(xmin = 43.5, xmax = 44.5, ymin = 0, ymax = 800, fill = 'lemonchiffon', alpha = 0.1) +
+  geom_rect(xmin = 28.5, xmax = 29.5, ymin = 0, ymax = 800, fill = 'lightcyan', alpha = 0.02) +
+  geom_rect(xmin = 30.5, xmax = 31.5, ymin = 0, ymax = 800, fill = 'lightcyan', alpha = 0.02) +
+  geom_rect(xmin = 7.5, xmax = 8.5, ymin = 0, ymax = 800, fill = 'mistyrose', alpha = 0.1) +
+  geom_rect(xmin = 19.5, xmax = 20.5, ymin = 0, ymax = 800, fill = 'mistyrose', alpha = 0.1) +
+  geom_rect(xmin = 33.5, xmax = 34.5,, ymin = 0, ymax = 800, fill = 'mistyrose', alpha = 0.1) +
   geom_point(size= 6, alpha=0.55, aes(shape=pair_name, color=soiltype)) +
+  geom_point(size= 6, alpha=0.55, aes(shape=pair_name, color=soiltype)) + 
   scale_shape_manual(values=c(17, 19, 15)) +
   scale_colour_manual(values=c("darkolivegreen3", "hotpink2")) +
   ylab("sqrt(Counts per Million)") +
@@ -329,13 +339,13 @@ average_expression_plot<-inner_join(inner_join(
         axis.title = element_text(size=15),
         legend.text = element_text(size=13),
         legend.title = element_blank(),
-        axis.text.x = element_text(angle = 25, vjust = 0.5, hjust=0.3),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0.3),
         panel.background = element_rect(fill = 'white', colour = 'grey72'),
         legend.position=c(.85, 0.8))
 
-pdf("average_expressionDEGs.pdf", width=12, height=6)
+#pdf("average_expressionDEGs.pdf", width=12, height=6)
 average_expression_plot
-dev.off()
+#dev.off()
 
 #######################################################################################################################
 #      How many genes have an average expression greater than 100 counts per million (cpm) in at least one species?    #                      #
@@ -533,19 +543,64 @@ for (i in 1:nrow(ultramafic_OGs)) {
 # this bit converts the format of revolutissima and impolita homologs to be able to filter GRanges objects with them
 homologs$homolog %<>% str_split_i("_", 4)
 
-
 # get impolita and revolutissima homologs of DEGs common to ultramafic-nonultramafic pairs
-imp_hom <- homologs %>% filter(species == "impolita") %>% pull(homolog)
-rev_hom <- homologs %>% filter(species == "revolutissima") %>% pull(homolog)
+imp_hom <- homologs %>% filter(species == "impolita")
+rev_hom <- homologs %>% filter(species == "revolutissima")
 
 # get the GRanges in the genomes of impolita and revolutissima of DEG homologs
-imp_hom_granges <- gene_granges$impolita %>% plyranges::filter(annotation %in% imp_hom)
-rev_hom_granges <- gene_granges$revolutissima %>% plyranges::filter(annotation %in% rev_hom)
+imp_hom_granges <- gene_granges$impolita %>% plyranges::filter(annotation %in% imp_hom$homolog)
+rev_hom_granges <- gene_granges$revolutissima %>% plyranges::filter(annotation %in% rev_hom$homolog)
 
 # using the granges objects, ask which DEG homologs in impolita and revolutissima have a TE within 1000bp
 # get the IDs of the impolita and revolutissima genes tha fit this croteria
-imp_te <- imp_hom_granges[findOverlaps(imp_hom_granges, te_intact_granges$impolita,  maxgap = 1000) %>% data.frame() %>% pull(queryHits)]$annotation
-rev_te <- rev_hom_granges[findOverlaps(rev_hom_granges, te_intact_granges$revolutissima,  maxgap = 1000) %>% data.frame() %>% pull(queryHits)]$annotation
+imp_te_proximal <- imp_hom_granges[findOverlaps(imp_hom_granges, te_intact_granges$impolita,  maxgap = 1000) %>% data.frame() %>% pull(queryHits)]
+rev_te_proximal <- rev_hom_granges[findOverlaps(rev_hom_granges, te_intact_granges$revolutissima,  maxgap = 1000) %>% data.frame() %>% pull(queryHits)]
+
+
+
+
+homologs %>% filter(species == "impolita" & homolog %in% imp_te_proximal$annotation)
+homologs %>% filter(species == "revolutissima" & homolog %in% rev_te_proximal$annotation)
+
+
+
+draw_highlighted_genetree("OG0000363", "g19147")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## to return to later when looking at diostance to TE for homoogs of DE genes
+
+distanceToNearest(imp_hom_granges, te_intact_granges$impolita, ignore.strand=FALSE) 
+distanceToNearest(rev_hom_granges, te_intact_granges$revolutissima, ignore.strand=FALSE)
+
+rbind(distanceToNearest(imp_hom_granges, te_intact_granges$impolita, ignore.strand=FALSE) %>% data.frame() %>% mutate(species="impolita"),  
+      distanceToNearest(rev_hom_granges, te_intact_granges$revolutissima, ignore.strand=FALSE) %>% data.frame() %>% mutate(species="revolutissima")) %>%
+  ggplot(aes(x=species, y=distance)) + 
+  geom_boxplot()
+
+rbind(distanceToNearest(imp_hom_granges, te_intact_granges$impolita, ignore.strand=FALSE) %>% data.frame() %>% mutate(species="impolita"),  
+      distanceToNearest(rev_hom_granges, te_intact_granges$revolutissima, ignore.strand=FALSE) %>% data.frame() %>% mutate(species="revolutissima")) %>%
+  group_by(species) %>%
+  summarise(meandist=median(distance))
+
+te_intact_granges$impolita[distanceToNearest(imp_hom_granges, te_intact_granges$impolita, ignore.strand=FALSE)$subjectHits]
+
 
 
 
