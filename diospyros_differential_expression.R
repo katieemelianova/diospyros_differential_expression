@@ -612,7 +612,7 @@ te_prox_vieillardii_homologs <- c(homologs %>% filter(species == "impolita" & ho
                                   unique()
 
 
-rbind(fpm(rev_imp$dds) %>% data.frame() %>% 
+te_prox_expression <- rbind(fpm(rev_imp$dds) %>% data.frame() %>% 
              dplyr::select(imp_3ba1, imp_3ba2, imp_3bb, imp_3bc, imp_3bd1, imp_3bd2, imp_3bd2r) %>% 
              rownames_to_column(var="gene_id") %>% 
              mutate(gene_id = str_split_i(gene_id, "\\.", 1)) %>%
@@ -626,10 +626,43 @@ rbind(fpm(rev_imp$dds) %>% data.frame() %>%
              filter(gene_id %in% te_prox_vieillardii_homologs) %>%
              melt() %>%
              mutate(species = "impolita")) %>%
-  set_colnames(c("gene_id", "individual", "cpm", "species")) %>%
-  ggplot(aes(x=species, y=log(cpm))) + 
-  geom_boxplot() +
-  facet_wrap(~gene_id)
+  set_colnames(c("gene_id", "individual", "cpm", "species"))
+
+
+plot_te_prox_expression <- function(gene_id){
+  expression_boxplot <- te_prox_expression %>% 
+    filter(gene_id == !!gene_id) %>% 
+    ggplot(aes(x=species, y=log(cpm))) + 
+    geom_boxplot() +
+    facet_wrap(~gene_id) +
+    xlab("") + 
+    theme(strip.background = element_blank(),
+      strip.text.x = element_blank(),
+      axis.title = element_text(size=20),
+      axis.text = element_text(size=15))
+  
+  return(expression_boxplot)
+}
+
+
+g11472_expression <- plot_te_prox_expression("g11472")
+g13660_expression <- plot_te_prox_expression("g13660")
+g19147_expression <- plot_te_prox_expression("g19147")
+g19148_expression <- plot_te_prox_expression("g19148")
+g21937_expression <- plot_te_prox_expression("g21937")
+g594_expression <- plot_te_prox_expression("g594")
+g7857_expression <- plot_te_prox_expression("g7857")
+g9428_expression <- plot_te_prox_expression("g9428")
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -696,12 +729,14 @@ plot_gggenes <- function(input_list){
     ggplot2::facet_wrap(~ species, ncol = 1, scales = "free") +
     theme_genes() +
     theme(legend.text = element_text(size=20),
-          axis.text.x = element_text(size=11),
+          axis.text.x = element_blank(),
+          line = element_blank(),
+          #axis.text.x = element_text(size=11),
           axis.text.y = element_text(size=14),
           axis.title = element_text(size=20),
           legend.title = element_blank()) +
     geom_blank(data = input_list$dummy) +
-    ylab("Species")
+    ylab("")
 }
 
 
@@ -851,12 +886,26 @@ g9428_gggenes
 
 
 
+g11472_expression
+g13660_expression
+g19147_expression
+g19148_expression
+g21937_expression
+g594_expression
+g7857_expression
+g9428_expression
 
 
-
-
-
-
+pdf("test_panel.pdf", height=25, width=15)
+grid.arrange(g11472_expression, g11472_gggenes, 
+  g13660_expression, g13660_gggenes, 
+  g19147_expression, g19147_gggenes, 
+  g19148_expression, g19148_gggenes, 
+  g21937_expression, g21937_gggenes, 
+  g594_expression, g594_gggenes, 
+  g7857_expression, g7857_gggenes, 
+  g9428_expression, g9428_gggenes, nrow = 8)
+dev.off()
 
 
 
