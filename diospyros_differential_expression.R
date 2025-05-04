@@ -320,15 +320,6 @@ average_expression_plot<-inner_join(inner_join(
          soiltype=case_when(variable %in% c("rev_av", "heq_av", "pic_av") ~ "Ultramafic",
                             variable %in% c("cal_av", "lab_av", "imp_av") ~ "Non-Ultramafic")) %>%
   ggplot(aes(x=rowname, y=sqrt(value))) + 
-  
-  geom_rect(xmin = 2.5, xmax = 3.5, ymin = 0, ymax = 800, fill = 'lemonchiffon', alpha = 0.1) +
-  geom_rect(xmin = 16.5, xmax = 18.5, ymin = 0, ymax = 800, fill = 'lemonchiffon', alpha = 0.1) +
-  geom_rect(xmin = 43.5, xmax = 44.5, ymin = 0, ymax = 800, fill = 'lemonchiffon', alpha = 0.1) +
-  geom_rect(xmin = 28.5, xmax = 29.5, ymin = 0, ymax = 800, fill = 'lightcyan', alpha = 0.02) +
-  geom_rect(xmin = 30.5, xmax = 31.5, ymin = 0, ymax = 800, fill = 'lightcyan', alpha = 0.02) +
-  geom_rect(xmin = 7.5, xmax = 8.5, ymin = 0, ymax = 800, fill = 'mistyrose', alpha = 0.1) +
-  geom_rect(xmin = 19.5, xmax = 20.5, ymin = 0, ymax = 800, fill = 'mistyrose', alpha = 0.1) +
-  geom_rect(xmin = 33.5, xmax = 34.5,, ymin = 0, ymax = 800, fill = 'mistyrose', alpha = 0.1) +
   geom_point(size= 6, alpha=0.55, aes(shape=pair_name, color=soiltype)) +
   geom_point(size= 6, alpha=0.55, aes(shape=pair_name, color=soiltype)) + 
   scale_shape_manual(values=c(17, 19, 15)) +
@@ -557,14 +548,372 @@ imp_te_proximal <- imp_hom_granges[findOverlaps(imp_hom_granges, te_intact_grang
 rev_te_proximal <- rev_hom_granges[findOverlaps(rev_hom_granges, te_intact_granges$revolutissima,  maxgap = 1000) %>% data.frame() %>% pull(queryHits)]
 
 
+############################################################################################################################
+#           now we can plot the same plot as before, highlighting only genes which have a TE next to them                  #
+#             yellow is te within 1kb of impolita, blue is te within 1kb of revolutissima, pink is te within 1kb of both   #
+############################################################################################################################
+
+average_expression_plot_teprox<-inner_join(inner_join(
+  data.frame(cal_av, pic_av) %>% rownames_to_column(), 
+  data.frame(heq_av, lab_av) %>% rownames_to_column()), 
+  data.frame(imp_av, rev_av) %>% rownames_to_column()) %>% 
+  filter(rowname %in% ultramaf_nonultramaf_intersect) %>% 
+  melt() %>%
+  mutate(rowname=str_replace(rowname, ".t1", "")) %>%
+  mutate(rowname=str_replace(rowname, ".t2", "")) %>%
+  mutate(rowname=str_replace(rowname, ".t3", "")) %>%
+  mutate(pair_name=case_when(variable %in% c("cal_av", "pic_av") ~ "Sp. Pic N'Ga - Calciphila",
+                             variable %in% c("heq_av", "lab_av") ~ "Hequetiae - Labillardierei",
+                             variable %in% c("rev_av", "imp_av") ~ "Revolutissima - Impolita"),
+         soiltype=case_when(variable %in% c("rev_av", "heq_av", "pic_av") ~ "Ultramafic",
+                            variable %in% c("cal_av", "lab_av", "imp_av") ~ "Non-Ultramafic")) %>%
+  ggplot(aes(x=rowname, y=sqrt(value))) + 
+  
+  geom_rect(xmin = 2.5, xmax = 3.5, ymin = 0, ymax = 800, fill = 'darkseagreen1', alpha = 0.02) +
+  geom_rect(xmin = 16.5, xmax = 18.5, ymin = 0, ymax = 800, fill = 'darkseagreen1', alpha = 0.02) +
+  geom_rect(xmin = 43.5, xmax = 44.5, ymin = 0, ymax = 800, fill = 'darkseagreen1', alpha = 0.02) +
+  geom_rect(xmin = 28.5, xmax = 29.5, ymin = 0, ymax = 800, fill = 'mistyrose', alpha = 0.1) +
+  geom_rect(xmin = 30.5, xmax = 31.5, ymin = 0, ymax = 800, fill = 'mistyrose', alpha = 0.1) +
+  geom_rect(xmin = 7.5, xmax = 8.5, ymin = 0, ymax = 800, fill = 'cornsilk2', alpha = 0.1) +
+  geom_rect(xmin = 19.5, xmax = 20.5, ymin = 0, ymax = 800, fill = 'cornsilk2', alpha = 0.1) +
+  geom_rect(xmin = 33.5, xmax = 34.5,, ymin = 0, ymax = 800, fill = 'cornsilk2', alpha = 0.1) +
+  geom_point(size= 6, alpha=0.55, aes(shape=pair_name, color=soiltype)) +
+  geom_point(size= 6, alpha=0.55, aes(shape=pair_name, color=soiltype)) + 
+  scale_shape_manual(values=c(17, 19, 15)) +
+  scale_colour_manual(values=c("darkolivegreen3", "hotpink2")) +
+  ylab("sqrt(Counts per Million)") +
+  xlab("Gene") + 
+  theme(axis.text = element_text(size=10), 
+        axis.title = element_text(size=15),
+        legend.text = element_text(size=10),
+        legend.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0.3),
+        panel.background = element_rect(fill = 'white', colour = 'grey72'),
+        legend.position=c(.85, 0.8))
+
+#pdf("average_expressionDEGs_te_proximal.pdf", width=12, height=6)
+average_expression_plot_teprox
+#dev.off()
 
 
-homologs %>% filter(species == "impolita" & homolog %in% imp_te_proximal$annotation)
-homologs %>% filter(species == "revolutissima" & homolog %in% rev_te_proximal$annotation)
+
+###########################################################################################################
+#     Now that we have genes of interest, we can plot the replicate expression values (not averages)
+#        this can be plotted fin a boxplot for imp and rev, alongside 
+###########################################################################################################
 
 
 
-draw_highlighted_genetree("OG0000363", "g19147")
+# get vieillardii homologs of impolita and revolutissima which have a TE proximal
+# **NOTE** that I am combining veillardii homologs of imp and rev together
+# therefore some items in the list will not have a proximal TE in one species (but will in the other)
+te_prox_vieillardii_homologs <- c(homologs %>% filter(species == "impolita" & homolog %in% imp_te_proximal$annotation) %>% pull(vieillardii_homolog), 
+                                  homologs %>% filter(species == "revolutissima" & homolog %in% rev_te_proximal$annotation) %>% pull(vieillardii_homolog)) %>%
+                                  unique()
+
+
+rbind(fpm(rev_imp$dds) %>% data.frame() %>% 
+             dplyr::select(imp_3ba1, imp_3ba2, imp_3bb, imp_3bc, imp_3bd1, imp_3bd2, imp_3bd2r) %>% 
+             rownames_to_column(var="gene_id") %>% 
+             mutate(gene_id = str_split_i(gene_id, "\\.", 1)) %>%
+             filter(gene_id %in% te_prox_vieillardii_homologs) %>%
+               melt() %>%
+               mutate(species = "revolutissima"),
+           fpm(rev_imp$dds) %>% data.frame() %>% 
+             dplyr::select(rev_24a1, rev_24a1r, rev_24a2, rev_24b1, rev_24b2, rev_25a1, rev_25a2, rev_25a3, rev_25aq3r) %>% 
+             rownames_to_column(var="gene_id") %>% 
+             mutate(gene_id = str_split_i(gene_id, "\\.", 1)) %>%
+             filter(gene_id %in% te_prox_vieillardii_homologs) %>%
+             melt() %>%
+             mutate(species = "impolita")) %>%
+  set_colnames(c("gene_id", "individual", "cpm", "species")) %>%
+  ggplot(aes(x=species, y=log(cpm))) + 
+  geom_boxplot() +
+  facet_wrap(~gene_id)
+
+
+
+
+###################################################
+#                  gggenes plots                  #
+###################################################
+
+
+# need to find the correct homologs which cant be done automatically
+# use these as input along with vieillardii homolog
+# outout can be used to plot gggenes
+
+setup_gggenes <- function(impolita_homolog, revolutissima_homolog, vieillardii_homolog){
+  
+  # get the granges of the imp and rev homologs
+  revolutissima_gene <- gene_granges$revolutissima %>% plyranges::filter(annotation == revolutissima_homolog)
+  impolita_gene <- gene_granges$impolita %>% plyranges::filter(annotation == impolita_homolog)
+  
+  # overlap these with their respective TE granges objects
+  revolutissima_te <- findOverlaps(revolutissima_gene, te_intact_granges$revolutissima,  maxgap = 1000)
+  impolita_te <- findOverlaps(impolita_gene, te_intact_granges$impolita,  maxgap = 1000)
+  
+  # extract the grange of any TEs within 1000bp using the subject of the overlaps
+  revolutissima_te <- te_intact_granges$revolutissima[revolutissima_te@to]
+  impolita_te <- te_intact_granges$impolita[impolita_te@to]
+  
+  # combine the TE granges of revolutissima and impolita, setting gene slot to "TE"
+  te <- rbind(revolutissima_te %>% data.frame() %>% mutate(gene="TE"), 
+              impolita_te %>% data.frame() %>% mutate(gene="TE")) %>% 
+    dplyr::select(c(seqnames, gene, start, end, ph2))
+  
+  # combine gene granges of revolutissima and impolita, setting the gene slot to the name of the gene
+  gene <- rbind(revolutissima_gene %>% data.frame() %>% mutate(gene=vieillardii_homolog),
+                impolita_gene %>% data.frame() %>% mutate(gene=vieillardii_homolog)) %>% 
+    dplyr::select(c(seqnames, gene, start, end, ph2))
+  
+  ## now combine both TE and gene granges, using the gene granges seqnames to infer which species is which
+  toplot <- rbind(te, gene) %>% 
+    mutate(species = case_when(seqnames == as.character(revolutissima_gene@seqnames) ~ "revolutissima", 
+                               seqnames == as.character(impolita_gene@seqnames) ~ "impolita"))
+  
+  # make a dummy so that the gggenes plot is lined up
+  dummies <- make_alignment_dummies(
+    toplot,
+    aes(xmin = start, xmax = end, y = species, id = gene),
+    on = unique(vieillardii_homolog))  
+  #  
+  to_return=list(dummy=dummies, toplot=toplot)
+  return(to_return)
+}
+
+###################################
+#       gggenes plot function     #
+###################################
+
+
+plot_gggenes <- function(input_list){
+  ggplot2::ggplot(input_list$toplot, ggplot2::aes(xmin = start, xmax = end,
+                                                   y = species, fill = gene, label = gene)) +
+    geom_gene_arrow(arrow_body_height = grid::unit(10, "mm"),
+                    arrowhead_height = grid::unit(12, "mm")) +
+    #geom_gene_label(height = grid::unit(6, "mm"), grow = TRUE) +
+    ggplot2::facet_wrap(~ species, ncol = 1, scales = "free") +
+    theme_genes() +
+    theme(legend.text = element_text(size=20),
+          axis.text.x = element_text(size=11),
+          axis.text.y = element_text(size=14),
+          axis.title = element_text(size=20),
+          legend.title = element_blank()) +
+    geom_blank(data = input_list$dummy) +
+    ylab("Species")
+}
+
+
+#################################
+#           g11472              #
+#################################
+
+vieillardii_homolog <- "g11472"
+impolita_homolog <- "g14194.t1"
+revolutissima_homolog <- "g18897.t1"
+g11472_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
+g11472_gggenes <- plot_gggenes(g11472_toplot)
+
+
+#################################
+#           g13660              #
+#################################
+
+
+#ultramafic_OGs %>% filter(gene == vieillardii_homolog)
+#test <- draw_highlighted_genetree("OG0000292", "g13660")
+
+vieillardii_homolog <- "g13660"
+impolita_homolog <- "g13031.t1"
+revolutissima_homolog <- "g1268.t1"
+g13660_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
+g13660_gggenes <- plot_gggenes(g13660_toplot)
+
+
+
+#################################
+#           g19147              #
+#################################
+
+#ultramafic_OGs %>% filter(gene == vieillardii_homolog)
+#draw_highlighted_genetree("OG0000363", "g19147")
+
+vieillardii_homolog <- "g19147"
+impolita_homolog <- "g5404.t1"
+revolutissima_homolog <- "g18409.t1"
+g19147_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
+g19147_gggenes <- plot_gggenes(g19147_toplot)
+
+#################################
+#           g19148              #
+#################################
+
+# same homologs as previous
+
+#ultramafic_OGs %>% filter(gene == vieillardii_homolog)
+#draw_highlighted_genetree("OG0000363", "g19148")
+
+vieillardii_homolog <- "g19148"
+impolita_homolog <- "g5404.t1"
+revolutissima_homolog <- "g18409.t1"
+g19148_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
+g19148_gggenes <- plot_gggenes(g19148_toplot)
+
+
+#################################
+#           g21937              #
+#################################
+
+#ultramafic_OGs %>% filter(gene == vieillardii_homolog)
+#draw_highlighted_genetree("OG0011205", "g21937")
+
+vieillardii_homolog <- "g21937"
+impolita_homolog <- "g17749.t1"
+revolutissima_homolog <- "g6984.t1"
+g21937_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
+g21937_gggenes <- plot_gggenes(g21937_toplot)
+
+#################################
+#           g4374               # unresolveable
+#################################
+
+#ultramafic_OGs %>% filter(gene == vieillardii_homolog)
+#draw_highlighted_genetree("OG0000066", "g4374")
+#
+#vieillardii_homolog <- "g4374"
+#impolita_homolog <- ""
+#revolutissima_homolog <- ""
+
+#################################
+#           g594                #
+#################################
+
+#ultramafic_OGs %>% filter(gene == vieillardii_homolog)
+#draw_highlighted_genetree("OG0006346", "g594")
+
+vieillardii_homolog <- "g594"
+impolita_homolog <- "g3611.t1"
+revolutissima_homolog <- "g14832.t1"
+g594_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
+g594_gggenes <- plot_gggenes(g594_toplot)
+
+
+#################################
+#           g7857               #
+#################################
+
+#ultramafic_OGs %>% filter(gene == vieillardii_homolog)
+#draw_highlighted_genetree("OG0000219", "g7857")
+
+vieillardii_homolog <- "g7857"
+impolita_homolog <- "g25993.t1"
+#impolita_homolog <- "g26603.t1"
+revolutissima_homolog <- "g24808.t1"
+g7857_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
+# not clear which homolog has been flagged as being TE proximal
+homologs %>% filter(vieillardii_homolog == "g7857" & homolog %in% imp_te_proximal$annotation)
+g7857_gggenes <- plot_gggenes(g7857_toplot)
+
+#################################
+#           g9428               #
+#################################
+
+#ultramafic_OGs %>% filter(gene == vieillardii_homolog)
+#draw_highlighted_genetree("OG0000291", "g9428")
+
+vieillardii_homolog <- "g9428"
+impolita_homolog <- "g7821.t1"
+revolutissima_homolog <- "g25092.t1"
+g9428_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
+g9428_gggenes <- plot_gggenes(g9428_toplot)
+
+
+
+
+
+
+
+
+
+
+
+
+
+g11472_gggenes
+g13660_gggenes
+g19147_gggenes
+g19148_gggenes
+g21937_gggenes
+g594_gggenes
+g7857_gggenes
+g9428_gggenes
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+revolutissima_g11314_intact_TE <- findOverlaps(revolutissima_g11314_gene, te_intact_granges$revolutissima,  maxgap = 35000)
+vieillardii_g1861_intact_TE <- findOverlaps(vieillardii_g1861_gene, te_intact_granges$vieillardii,  maxgap = 35000)
+impolita_g4621_intact_TE <- findOverlaps(impolita_g4621_gene, te_intact_granges$impolita,  maxgap = 35000)
+
+revolutissima_g11314_intact_TE <- te_intact_granges$revolutissima[revolutissima_g11314_intact_TE@to]
+vieillardii_g1861_intact_TE <- te_intact_granges$vieillardii[vieillardii_g1861_intact_TE@to]
+impolita_g4621_intact_TE <- te_intact_granges$impolita[impolita_g4621_intact_TE@to]
+
+test_te <- rbind(revolutissima_g11314_intact_TE %>% data.frame() %>% mutate(gene="TE"), 
+                 vieillardii_g1861_intact_TE %>% data.frame() %>% mutate(gene="TE"), 
+                 impolita_g4621_intact_TE %>% data.frame()%>% mutate(gene="TE")) %>% 
+  dplyr::select(c(seqnames, gene, start, end, ph2))
+
+
+test_gene <- rbind(revolutissima_g11314_gene %>% data.frame() %>% mutate(gene="Annexin"),
+                   vieillardii_g1861_gene %>% data.frame() %>% mutate(gene="Annexin"),
+                   impolita_g4621_gene %>% data.frame() %>% mutate(gene="Annexin")) %>% 
+  dplyr::select(c(seqnames, gene, start, end, ph2))
+
+test <- rbind(test_te, test_gene) %>% mutate(species = case_when(seqnames == "ptg000017l" ~ "revolutissima",
+                                                                 seqnames == "ptg000002l" ~ "vieillardii",
+                                                                 seqnames == "Scaffolds_1151" ~ "impolita"))
+
+dummies <- make_alignment_dummies(
+  test,
+  aes(xmin = start, xmax = end, y = species, id = gene),
+  on = "Annexin"
+)
+
+#pdf("annexin_OG0000336_geneplot.pdf", height=5.5, width=9)
+ggplot2::ggplot(test, ggplot2::aes(xmin = start, xmax = end,
+                                   y = species, fill = gene, label = gene)) +
+  geom_gene_arrow(arrow_body_height = grid::unit(10, "mm"),
+                  arrowhead_height = grid::unit(12, "mm")) +
+  #geom_gene_label(height = grid::unit(6, "mm"), grow = TRUE) +
+  ggplot2::facet_wrap(~ species, ncol = 1, scales = "free") +
+  theme_genes() +
+  theme(legend.text = element_text(size=20),
+        axis.text.x = element_text(size=11),
+        axis.text.y = element_text(size=14),
+        axis.title = element_text(size=20),
+        legend.title = element_blank()) +
+  geom_blank(data = dummies) +
+  ylab("Species")
+#dev.off()
+
+
 
 
 
@@ -585,20 +934,16 @@ draw_highlighted_genetree("OG0000363", "g19147")
 
 
 ## to return to later when looking at diostance to TE for homoogs of DE genes
-
 distanceToNearest(imp_hom_granges, te_intact_granges$impolita, ignore.strand=FALSE) 
 distanceToNearest(rev_hom_granges, te_intact_granges$revolutissima, ignore.strand=FALSE)
-
 rbind(distanceToNearest(imp_hom_granges, te_intact_granges$impolita, ignore.strand=FALSE) %>% data.frame() %>% mutate(species="impolita"),  
       distanceToNearest(rev_hom_granges, te_intact_granges$revolutissima, ignore.strand=FALSE) %>% data.frame() %>% mutate(species="revolutissima")) %>%
   ggplot(aes(x=species, y=distance)) + 
   geom_boxplot()
-
 rbind(distanceToNearest(imp_hom_granges, te_intact_granges$impolita, ignore.strand=FALSE) %>% data.frame() %>% mutate(species="impolita"),  
       distanceToNearest(rev_hom_granges, te_intact_granges$revolutissima, ignore.strand=FALSE) %>% data.frame() %>% mutate(species="revolutissima")) %>%
   group_by(species) %>%
   summarise(meandist=median(distance))
-
 te_intact_granges$impolita[distanceToNearest(imp_hom_granges, te_intact_granges$impolita, ignore.strand=FALSE)$subjectHits]
 
 
@@ -608,30 +953,6 @@ te_intact_granges$impolita[distanceToNearest(imp_hom_granges, te_intact_granges$
 
 
 
-one <- setdiff(homologs %>% filter(species == "impolita" & homolog %in% imp_te) %>% pull(orthogroup) %>% unique(), homologs %>% filter(species == "revolutissima" & homolog %in% rev_te) %>% pull(orthogroup) %>% unique())
-two <- setdiff(homologs %>% filter(species == "revolutissima" & homolog %in% rev_te) %>% pull(orthogroup) %>% unique(), homologs %>% filter(species == "impolita" & homolog %in% imp_te) %>% pull(orthogroup) %>% unique())
-
-
-homologs %>% filter(species == "impolita" & homolog %in% imp_te)
-homologs %>% filter(species == "revolutissima" & homolog %in% rev_te)
-
-
-
-homologs %>% filter(orthogroup %in% one & homolog %in% imp_te)
-
-
-
-
-pdf("OG0006346_tree.pdf", height=10, width=7)
-# add in the sequence names of impolita dn revolutissima manually as they are not a descendant of the viellardii gene
-OG0006346_tree <- draw_highlighted_genetree("OG0006346")
-OG0006346_tree$focal_homolog_tips_revolutissima <- c("revolutissima_braker_aa_g14832.t1")
-OG0006346_tree$focal_homolog_tips_impolita <- c("impolita_braker_aa_g3611.t1")
-OG0006346_tree$output_tree + 
-  geom_tiplab(aes(subset = isTip & !(label %in% c(OG0006346_tree$focal_tip, OG0006346_tree$focal_homolog_tips_impolita, OG0006346_tree$focal_homolog_tips_revolutissima)), size=5))  +
-  geom_tiplab(aes(subset = label == OG0006346_tree$focal_tip), size=5, colour = 'firebrick2', fontface="bold")+
-  geom_tiplab(aes(subset = (label %in% OG0006346_tree$focal_homolog_tips_impolita)), size=5, colour = 'dodgerblue2', fontface="bold") +
-  geom_tiplab(aes(subset = (label %in% OG0006346_tree$focal_homolog_tips_revolutissima)), size=5, colour = 'forestgreen', fontface="bold")
 
 
 
