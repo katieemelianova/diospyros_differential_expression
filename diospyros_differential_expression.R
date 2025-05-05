@@ -14,6 +14,7 @@ library(eulerr)
 library(pheatmap)
 library(ggtree)
 library(reshape2)
+library(cowplot)
 library(phytools)
 source("differential_expression_functions.R")
 source("/Users/katieemelianova/Desktop/Diospyros/diospyros_R_functions/diospyros_soil_leaf_species_element_dataset.R")
@@ -632,14 +633,20 @@ te_prox_expression <- rbind(fpm(rev_imp$dds) %>% data.frame() %>%
 plot_te_prox_expression <- function(gene_id){
   expression_boxplot <- te_prox_expression %>% 
     filter(gene_id == !!gene_id) %>% 
-    ggplot(aes(x=species, y=log(cpm))) + 
+    ggplot(aes(x=species, y=log(cpm), fill=species)) + 
     geom_boxplot() +
     facet_wrap(~gene_id) +
     xlab("") + 
-    theme(strip.background = element_blank(),
-      strip.text.x = element_blank(),
+    ylab("") + 
+    theme(strip.background = element_rect(fill = "grey95"),
+      #strip.text.x = element_blank(),
+      strip.text.x = element_text(size=20),
       axis.title = element_text(size=20),
-      axis.text = element_text(size=15))
+      axis.text = element_text(size=18),
+      legend.position = "none",
+      panel.background = element_rect(fill = "white"),
+      panel.grid = element_line(color = "grey85")) +
+    scale_fill_manual(values=c("darkolivegreen3", "hotpink2"))
   
   return(expression_boxplot)
 }
@@ -720,25 +727,30 @@ setup_gggenes <- function(impolita_homolog, revolutissima_homolog, vieillardii_h
 ###################################
 
 
+
 plot_gggenes <- function(input_list){
-  ggplot2::ggplot(input_list$toplot, ggplot2::aes(xmin = start, xmax = end,
-                                                   y = species, fill = gene, label = gene)) +
-    geom_gene_arrow(arrow_body_height = grid::unit(10, "mm"),
+  ggplot2::ggplot(input_list$toplot, ggplot2::aes(xmin = start, xmax = end, y = species, fill = interaction(gene, species, sep=':'), label = gene)) +
+  geom_gene_arrow(arrow_body_height = grid::unit(10, "mm"),
                     arrowhead_height = grid::unit(12, "mm")) +
     #geom_gene_label(height = grid::unit(6, "mm"), grow = TRUE) +
     ggplot2::facet_wrap(~ species, ncol = 1, scales = "free") +
     theme_genes() +
-    theme(legend.text = element_text(size=20),
+    theme(legend.text = element_text(size=18),
           axis.text.x = element_blank(),
           line = element_blank(),
           #axis.text.x = element_text(size=11),
-          axis.text.y = element_text(size=14),
-          axis.title = element_text(size=20),
-          legend.title = element_blank()) +
+          axis.text.y = element_text(size=20),
+          #axis.title = element_text(size=20),
+          legend.title = element_blank(),
+          legend.position = "none",
+          
+          axis.title.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.line.x = element_blank(),
+          plot.margin = unit(c(2,0,2,0), "cm")) +
     geom_blank(data = input_list$dummy) +
     ylab("")
 }
-
 
 #################################
 #           g11472              #
@@ -748,7 +760,7 @@ vieillardii_homolog <- "g11472"
 impolita_homolog <- "g14194.t1"
 revolutissima_homolog <- "g18897.t1"
 g11472_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
-g11472_gggenes <- plot_gggenes(g11472_toplot)
+g11472_gggenes <- plot_gggenes(g11472_toplot) + scale_fill_manual(values=c("darkolivegreen3", "grey76", "hotpink2", "grey76"))
 
 
 #################################
@@ -763,7 +775,7 @@ vieillardii_homolog <- "g13660"
 impolita_homolog <- "g13031.t1"
 revolutissima_homolog <- "g1268.t1"
 g13660_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
-g13660_gggenes <- plot_gggenes(g13660_toplot)
+g13660_gggenes <- plot_gggenes(g13660_toplot) + scale_fill_manual(values=c("darkolivegreen3", "hotpink2", "grey76"))
 
 
 
@@ -778,7 +790,7 @@ vieillardii_homolog <- "g19147"
 impolita_homolog <- "g5404.t1"
 revolutissima_homolog <- "g18409.t1"
 g19147_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
-g19147_gggenes <- plot_gggenes(g19147_toplot)
+g19147_gggenes <- plot_gggenes(g19147_toplot) + scale_fill_manual(values=c("darkolivegreen3", "grey76", "hotpink2"))
 
 #################################
 #           g19148              #
@@ -793,7 +805,7 @@ vieillardii_homolog <- "g19148"
 impolita_homolog <- "g5404.t1"
 revolutissima_homolog <- "g18409.t1"
 g19148_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
-g19148_gggenes <- plot_gggenes(g19148_toplot)
+g19148_gggenes <- plot_gggenes(g19148_toplot) + scale_fill_manual(values=c("darkolivegreen3", "grey76", "hotpink2"))
 
 
 #################################
@@ -807,7 +819,7 @@ vieillardii_homolog <- "g21937"
 impolita_homolog <- "g17749.t1"
 revolutissima_homolog <- "g6984.t1"
 g21937_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
-g21937_gggenes <- plot_gggenes(g21937_toplot)
+g21937_gggenes <- plot_gggenes(g21937_toplot) + scale_fill_manual(values=c("darkolivegreen3", "grey76", "hotpink2", "grey76"))
 
 #################################
 #           g4374               # unresolveable
@@ -831,7 +843,7 @@ vieillardii_homolog <- "g594"
 impolita_homolog <- "g3611.t1"
 revolutissima_homolog <- "g14832.t1"
 g594_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
-g594_gggenes <- plot_gggenes(g594_toplot)
+g594_gggenes <- plot_gggenes(g594_toplot) + scale_fill_manual(values=c("darkolivegreen3", "hotpink2", "grey76"))
 
 
 #################################
@@ -848,7 +860,7 @@ revolutissima_homolog <- "g24808.t1"
 g7857_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
 # not clear which homolog has been flagged as being TE proximal
 homologs %>% filter(vieillardii_homolog == "g7857" & homolog %in% imp_te_proximal$annotation)
-g7857_gggenes <- plot_gggenes(g7857_toplot)
+g7857_gggenes <- plot_gggenes(g7857_toplot) + scale_fill_manual(values=c("darkolivegreen3", "grey76", "hotpink2", "grey76"))
 
 #################################
 #           g9428               #
@@ -861,51 +873,61 @@ vieillardii_homolog <- "g9428"
 impolita_homolog <- "g7821.t1"
 revolutissima_homolog <- "g25092.t1"
 g9428_toplot <- setup_gggenes(impolita_homolog, revolutissima_homolog, vieillardii_homolog)
-g9428_gggenes <- plot_gggenes(g9428_toplot)
+g9428_gggenes <- plot_gggenes(g9428_toplot) + scale_fill_manual(values=c("darkolivegreen3", "grey76", "hotpink2"))
 
 
 
 
 
 
+g11472_grid <- plot_grid(g11472_expression, g11472_gggenes, rel_widths = c(1.2,2))
+g13660_grid <- plot_grid(g13660_expression, g13660_gggenes, rel_widths = c(1.2,2))
+g19147_grid <- plot_grid(g19147_expression, g19147_gggenes, rel_widths = c(1.2,2))
+g19148_grid <- plot_grid(g19148_expression, g19148_gggenes, rel_widths = c(1.2,2))
+g21937_grid <- plot_grid(g21937_expression, g21937_gggenes, rel_widths = c(1.2,2))
+g594_grid <- plot_grid(g594_expression, g594_gggenes, rel_widths = c(1.2,2))
+g7857_grid <- plot_grid(g7857_expression, g7857_gggenes, rel_widths = c(1.2,2))
+g9428_grid <- plot_grid(g9428_expression, g9428_gggenes, rel_widths = c(1.2,2))
 
 
 
+all_grid <- plot_grid(g11472_grid,
+          g13660_grid,
+          g19147_grid,
+          g19148_grid,
+          g21937_grid,
+          g594_grid,
+          g7857_grid,
+          g9428_grid, ncol = 1)
 
-
-
-
-g11472_gggenes
-g13660_gggenes
-g19147_gggenes
-g19148_gggenes
-g21937_gggenes
-g594_gggenes
-g7857_gggenes
-g9428_gggenes
-
-
-
-g11472_expression
-g13660_expression
-g19147_expression
-g19148_expression
-g21937_expression
-g594_expression
-g7857_expression
-g9428_expression
-
-
-pdf("test_panel.pdf", height=25, width=15)
-grid.arrange(g11472_expression, g11472_gggenes, 
-  g13660_expression, g13660_gggenes, 
-  g19147_expression, g19147_gggenes, 
-  g19148_expression, g19148_gggenes, 
-  g21937_expression, g21937_gggenes, 
-  g594_expression, g594_gggenes, 
-  g7857_expression, g7857_gggenes, 
-  g9428_expression, g9428_gggenes, nrow = 8)
+pdf("test_panel.pdf", height=18, width=10)
+all_grid
 dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
