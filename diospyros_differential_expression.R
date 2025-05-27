@@ -416,10 +416,10 @@ c <- apply(fpm(rev_imp_nothresh$dds)[ultramafic_nonultramafic_DEGs_large_effect,
 #       get calciphila-spn genes to overlay with those found by Florian         # 
 #################################################################################
 
-cal_spn_degs <- cal_spn_nothresh$results %>% 
-  data.frame() %>% 
-  filter(abs(log2FoldChange) > 2 & padj < 0.05) %>% 
-  rownames()
+
+cal_spn_degs <- cal_spn$results %>% data.frame() %>% filter(padj < 0.05 & abs(log2FoldChange) > 2) %>% rownames()
+imp_rev_degs <- rev_imp$results %>% data.frame() %>% filter(padj < 0.05 & abs(log2FoldChange) > 2) %>% rownames()
+
 
 braker_vieillardii %>% 
   filter(annotation %in% cal_spn_degs) %>% 
@@ -427,13 +427,91 @@ braker_vieillardii %>%
   data.frame() %>%
   write.table("cal_spn_degs.bed", quote=FALSE, col.names = FALSE, row.names = FALSE, sep = "\t")
 
+braker_vieillardii %>% 
+  filter(annotation %in% imp_rev_degs) %>% 
+  dplyr::select(seqname, start, end, annotation) %>% 
+  data.frame() %>%
+  write.table("imp_rev_degs.bed", quote=FALSE, col.names = FALSE, row.names = FALSE, sep = "\t")
 
-# found the following genes to overap between florians set and mine:
-florian_mine_genes <- c("g931.t1", "g1801.t1", "g1852.t1", "g1855.t1", "g1856.t1", "g1861.t1", "g1877.t2", "g1878.t1", "g1893.t1", "g11936.t1", "g11962.t1", "g12622.t1", "g12622.t1", "g14809.t1", "g14824.t1", "g14835.t1", "g16635.t1", "g20731.t1", "g20783.t1", "g20791.t1", "g20832.t1", "g21722.t1", "g23287.t1", "g23932.t2")
+# each of the bed files is used to overlap with peaks of interest found in the vieillardii genome using each species pair
+# using the following command:
+# bedtools intersect -a cal_spn_degs.bed -b cal_spn_poi.bed  > cal_spn_overlap.bed
+# then each *_overlap.bed file is loaded back here
 
-florian_mine_genes %>% get_enriched_terms(mp, return_sample_GOData=TRUE)
+cal_spn_overlap <- read_delim("cal_spn_overlap.bed", col_names = c("contig", "start", "end", "gene_id"))
+imp_rev_overlap <- read_delim("imp_rev_overlap.bed", col_names = c("contig", "start", "end", "gene_id"))
 
-mp[florian_mine_genes] %>% unlist() %>% unname()
+# take the gene ID of each, take the GO terms mapped to that gene ID, and input into ReviGO
+# use the biological porcess tab and the interactive graph tab to visualise plots to see what functions are represented in DEGs within peaks of interest
+mp[cal_spn_overlap$gene_id] %>% unlist() %>% unname() %>% data.frame() %>% write.table("cal_spn_overlap_GO", quote=FALSE, col.names = FALSE, row.names = FALSE)
+mp[imp_rev_overlap$gene_id] %>% unlist() %>% unname() %>% data.frame() %>% write.table("imp_rev_overlap_GO", quote=FALSE, col.names = FALSE, row.names = FALSE)
+
+
+#################################################################
+#       enriched GO term plot of Florian peaks and DEGs         # 
+#################################################################
+
+# instead of getting the GO terms, I am trying an enrichment to reduce the number of terms and ease plotting
+# first get enriched terms for the DEGs which overlap with a peak of interest
+cal_spn_overlap_topGO <- get_enriched_terms(cal_spn_overlap$gene_id, mp, return_sample_GOData=FALSE) %>% filter(as.numeric(classicFisher) < 0.05)
+imp_rev_overlap_topGO <- get_enriched_terms(imp_rev_overlap$gene_id, mp, return_sample_GOData=FALSE) %>% filter(as.numeric(classicFisher) < 0.05)
+
+# next use the topGO gene to GO mapping to get a dataframe of gene:GO
+gene2GO <- reshape2::melt(mp) %>% set_colnames(c("GO.ID", "geneID"))
+
+# get the DEG results and rename gene ID column for joining
+cal_spn_dexp <- cal_spn$results %>% data.frame() %>% rownames_to_column(var="geneID")
+rev_imp_dexp <- rev_imp$results %>% data.frame() %>% rownames_to_column(var="geneID")
+
+
+# join DEGs and GO:gene mapping by gene_ID, getting average of log2FC and log10 normalising, then plotting
+rev_imp_enrichment_plot <- left_join(rev_imp_dexp, gene2GO, by="geneID") %>%
+  group_by(GO.ID) %>%
+  summarize(log2fc = mean(log2FoldChange), .groups = "drop") %>%
+  right_join(imp_rev_overlap_topGO, by="GO.ID") %>%
+  drop_na() %>%
+  mutate(classicFisher=-log10(as.numeric(classicFisher))) %>%
+  ggplot(aes(x = reorder(Term, log2fc), y = classicFisher, fill = log2fc)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  scale_x_discrete(position = "top")  +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  ylab("-log10(P-Value)") +
+  xlab("") +
+  theme(axis.text = element_text(size=17),
+        axis.title = element_text(size=15),
+        panel.background = element_rect(fill = 'white', colour = 'grey72'),
+        legend.position=c(3.3, 0.05))
+
+
+cal_spn_enrichment_plot <- left_join(cal_spn_dexp, gene2GO, by="geneID") %>%
+  group_by(GO.ID) %>%
+  summarize(log2fc = mean(log2FoldChange), .groups = "drop") %>%
+  right_join(cal_spn_overlap_topGO, by="GO.ID") %>%
+  drop_na()
+
+cal_spn_enrichment_plot[cal_spn_enrichment_plot$Term == "production of siRNA involved in post-transcriptional gene silencing by RNA",]$Term <- "siRNA, post-transcriptional gene silencing by RNA"
+
+cal_spn_enrichment_plot <- cal_spn_enrichment_plot %>% 
+  mutate(classicFisher=-log10(as.numeric(classicFisher))) %>%
+  ggplot(aes(x = reorder(Term, log2fc), y = classicFisher, fill = log2fc)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  ylab("-log10(P-Value)") +
+  xlab("") +
+  scale_y_reverse() +
+  theme(axis.text = element_text(size=17),
+        axis.title = element_text(size=15),
+        panel.background = element_rect(fill = 'white', colour = 'grey72'),
+        legend.position=c(-2.3, 0.05))
+
+
+pdf("diospyros_overlap_enrichment_plot.pdf", height=9, width=9)
+plot_grid(cal_spn_enrichment_plot, rev_imp_enrichment_plot, ncol = 1, rel_widths=c(1, 1))
+dev.off()
+
+
 
 
 #############################################################################################################################
@@ -866,9 +944,6 @@ g7857_gggenes <- plot_gggenes(g7857_toplot) + scale_fill_manual(values=c("darkol
 #           g9428               #
 #################################
 
-#ultramafic_OGs %>% filter(gene == vieillardii_homolog)
-#draw_highlighted_genetree("OG0000291", "g9428")
-
 vieillardii_homolog <- "g9428"
 impolita_homolog <- "g7821.t1"
 revolutissima_homolog <- "g25092.t1"
@@ -879,6 +954,9 @@ g9428_gggenes <- plot_gggenes(g9428_toplot) + scale_fill_manual(values=c("darkol
 
 
 
+###########################################################################################
+#          Now put all the figures together using cowplot and write to file               #
+###########################################################################################
 
 g11472_grid <- plot_grid(g11472_expression, g11472_gggenes, rel_widths = c(1.2,2))
 g13660_grid <- plot_grid(g13660_expression, g13660_gggenes, rel_widths = c(1.2,2))
@@ -903,92 +981,6 @@ all_grid <- plot_grid(g11472_grid,
 pdf("test_panel.pdf", height=18, width=10)
 all_grid
 dev.off()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-revolutissima_g11314_intact_TE <- findOverlaps(revolutissima_g11314_gene, te_intact_granges$revolutissima,  maxgap = 35000)
-vieillardii_g1861_intact_TE <- findOverlaps(vieillardii_g1861_gene, te_intact_granges$vieillardii,  maxgap = 35000)
-impolita_g4621_intact_TE <- findOverlaps(impolita_g4621_gene, te_intact_granges$impolita,  maxgap = 35000)
-
-revolutissima_g11314_intact_TE <- te_intact_granges$revolutissima[revolutissima_g11314_intact_TE@to]
-vieillardii_g1861_intact_TE <- te_intact_granges$vieillardii[vieillardii_g1861_intact_TE@to]
-impolita_g4621_intact_TE <- te_intact_granges$impolita[impolita_g4621_intact_TE@to]
-
-test_te <- rbind(revolutissima_g11314_intact_TE %>% data.frame() %>% mutate(gene="TE"), 
-                 vieillardii_g1861_intact_TE %>% data.frame() %>% mutate(gene="TE"), 
-                 impolita_g4621_intact_TE %>% data.frame()%>% mutate(gene="TE")) %>% 
-  dplyr::select(c(seqnames, gene, start, end, ph2))
-
-
-test_gene <- rbind(revolutissima_g11314_gene %>% data.frame() %>% mutate(gene="Annexin"),
-                   vieillardii_g1861_gene %>% data.frame() %>% mutate(gene="Annexin"),
-                   impolita_g4621_gene %>% data.frame() %>% mutate(gene="Annexin")) %>% 
-  dplyr::select(c(seqnames, gene, start, end, ph2))
-
-test <- rbind(test_te, test_gene) %>% mutate(species = case_when(seqnames == "ptg000017l" ~ "revolutissima",
-                                                                 seqnames == "ptg000002l" ~ "vieillardii",
-                                                                 seqnames == "Scaffolds_1151" ~ "impolita"))
-
-dummies <- make_alignment_dummies(
-  test,
-  aes(xmin = start, xmax = end, y = species, id = gene),
-  on = "Annexin"
-)
-
-#pdf("annexin_OG0000336_geneplot.pdf", height=5.5, width=9)
-ggplot2::ggplot(test, ggplot2::aes(xmin = start, xmax = end,
-                                   y = species, fill = gene, label = gene)) +
-  geom_gene_arrow(arrow_body_height = grid::unit(10, "mm"),
-                  arrowhead_height = grid::unit(12, "mm")) +
-  #geom_gene_label(height = grid::unit(6, "mm"), grow = TRUE) +
-  ggplot2::facet_wrap(~ species, ncol = 1, scales = "free") +
-  theme_genes() +
-  theme(legend.text = element_text(size=20),
-        axis.text.x = element_text(size=11),
-        axis.text.y = element_text(size=14),
-        axis.title = element_text(size=20),
-        legend.title = element_blank()) +
-  geom_blank(data = dummies) +
-  ylab("Species")
-#dev.off()
-
-
-
-
-
-
 
 
 
