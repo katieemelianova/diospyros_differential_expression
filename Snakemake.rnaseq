@@ -1,10 +1,19 @@
 from glob import glob
-species="calciphila"
-samples=glob("/".join([species, "*.1.fq.gz"]))
-samples = [i.split(".")[0] for i in samples]
 
-GENOMEDIR="./diospyros_reference_genome"
-GTF="vieillardii.gtf"
+#species="labillardierei"
+#samples=glob("/".join([species, "*_1.fq.gz"]))
+#samples = [i.split("_1")[0] for i in samples]
+
+
+SPECIES="impolita"
+samples=glob("".join([SPECIES, "/*.1.fq.gz"]))
+samples = [i.split(".1")[0] for i in samples]
+#samples=glob("*/*_1.fq.gz")
+#samples = [i.split("_1")[0] for i in samples]
+GENOMEDIR="".join([SPECIES, "_reference_genome"])
+GTF="".join([SPECIES, ".gtf"])
+#GENOMEDIR="./diospyros_reference_genome"
+#GTF="vieillardii.gtf"
 
 
 rule cutadapt:
@@ -29,7 +38,8 @@ rule star:
         genomedir=GENOMEDIR
     shell:
         """
-        STAR --genomeDir {params.genomedir} --runThreadN 32 --twopassMode Basic --outFilterMultimapNmax 10 --readFilesIn {input.fwd} {input.rev} --outFileNamePrefix {wildcards.sample} --outSAMtype BAM SortedByCoordinate --outFilterScoreMinOverLread 0.3 --outFilterMatchNminOverLread 0.3 --readFilesCommand zcat 
+        # STAR --genomeDir {params.genomedir} --runThreadN 32 --twopassMode Basic --outFilterMultimapNmax 10 --readFilesIn {input.fwd} {input.rev} --outFileNamePrefix {wildcards.sample} --outSAMtype BAM SortedByCoordinate --outFilterScoreMinOverLread 0.3 --outFilterMatchNminOverLread 0.3 --readFilesCommand zcat 
+        STAR --genomeDir {params.genomedir} --runThreadN 32 --twopassMode Basic --outFilterMultimapNmax 1 --readFilesIn {input.fwd} {input.rev} --outFileNamePrefix {wildcards.sample} --outSAMtype BAM SortedByCoordinate --readFilesCommand zcat
         """
 
 
